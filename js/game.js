@@ -38,7 +38,7 @@
     if (G.L) { AI.clear(); dispose(G.L.scene); FX.clear(); }
     for (const k in G.remotes) { G.remotes[k].model = null; }
     const def = D.LEVELS[id]; const L = G.L = GH.Build(def, { low: G.gfx === 'low' }); G.P = L.P; G.lvl = id; G.hub = !!def.hub;
-    G.t = 0; G.time = 0; G.phase = G.hub ? 'hub' : 'sneak'; G.stats = { caught: 0, alarms: 0, loot: 0, lootN: 0, big: 0 }; G.loot = {}; G.carryRemote = {};
+    G.escape = null; G.camOverride = null; G.t = 0; G.time = 0; G.phase = G.hub ? 'hub' : 'sneak'; G.stats = { caught: 0, alarms: 0, loot: 0, lootN: 0, big: 0 }; G.loot = {}; G.carryRemote = {};
     // inventory
     const up = G.save.up; G.inv = { hook: 3, banana: 2 + (up.banana || 0), smoke: 2 + (up.smoke || 0), decoy: 2 + (up.decoy || 0), mirror: 1 + (up.mirror || 0) };
     if (!G.inv[G.sel]) G.sel = 'banana';

@@ -111,8 +111,8 @@
 
   /* ---------- panels ---------- */
   UI.panelOpen = () => !$('pnl').classList.contains('hidden');
-  UI.panel = function (html, bind, cls) { const p = $('pnl'), c = $('pnlCard'); c.innerHTML = html; c.className = 'card' + (cls ? ' ' + cls : ''); p.className = 'screen top' + (cls && cls.indexOf('low') >= 0 ? ' low' : ''); p.classList.remove('hidden'); c.scrollTop = 0; c.querySelectorAll('[data-close]').forEach((b) => b.onclick = () => UI.close()); if (bind) bind(c); };
-  UI.close = function () { $('pnl').classList.add('hidden'); if (G) G.camOverride = null; GH.Snd.fx && GH.Snd.fx('ui'); if (UI.onClose) { const f = UI.onClose; UI.onClose = null; f(); } };
+  UI.panel = function (html, bind, cls) { const p = $('pnl'), c = $('pnlCard'); c.innerHTML = html; c.className = 'card' + (cls ? ' ' + cls : ''); p.className = 'screen top' + (cls && cls.indexOf('low') >= 0 ? ' low' : ''); p.classList.remove('hidden'); c.scrollTop = 0; if (G && !(G.room && G.room.opened)) G.paused = true; c.querySelectorAll('[data-close]').forEach((b) => b.onclick = () => UI.close()); if (bind) bind(c); };
+  UI.close = function () { $('pnl').classList.add('hidden'); if (G) G.paused = false; if (G) G.camOverride = null; GH.Snd.fx && GH.Snd.fx('ui'); if (UI.onClose) { const f = UI.onClose; UI.onClose = null; f(); } };
   UI.toast = function (msg, bad) { const t = document.createElement('div'); t.className = 'toast' + (bad ? ' bad' : ''); t.textContent = msg; const box = $('toasts'); box.appendChild(t); while (box.children.length > 3) box.removeChild(box.children[0]); UI.lastToast = msg; setTimeout(() => t.remove(), 2600); };
   UI.banner = function (msg, bad) { const b = $('banner'); b.textContent = msg; b.className = bad ? 'bad' : ''; clearTimeout(UI.bT); UI.bT = setTimeout(() => b.classList.add('hidden'), 2800); UI.lastBanner = msg; };
   UI.fade = function (fn) { const f = $('fade'); f.classList.add('on'); setTimeout(() => { try { fn(); } catch (e) { console.error(e); } setTimeout(() => f.classList.remove('on'), 120); }, 360); };
