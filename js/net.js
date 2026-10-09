@@ -13,27 +13,28 @@
     room.on('open', () => {
       msg('Connected!', true); $('scrOnline').classList.add('hidden');
       N.badge = GN.ui.badge(room, { pos: 'bc', label: room.code }); if (N.badge && N.badge.el) N.badge.el.style.bottom = 'calc(4px + env(safe-area-inset-bottom))';
-      if (room.isHost) { g.UI.fade(() => g.loadLevel('hideout')); g.UI.toast('Room ' + room.code + ' is open! Friends join with this code. 🤝'); room.setState({ role: g.save.role }); }
-      else { g.UI.toast('Joined room ' + room.code + '! 🤝'); N.waitSync = true; g.UI.fade(() => { g.loadLevel('hideout'); N.fixRole(); }); }
+      if (room.isHost) { GH.UI.fade(() => g.loadLevel('hideout')); GH.UI.toast('Room ' + room.code + ' is open! Friends join with this code. 🤝'); room.setState({ role: g.save.role }); }
+      else { GH.UI.toast('Joined room ' + room.code + '! 🤝'); N.waitSync = true; GH.UI.fade(() => { g.loadLevel('hideout'); N.fixRole(); }); }
       GH.Snd.fx('ping');
     });
-    room.on('join', (p) => { if (p.pid === room.pid) return; g.UI.toast('👋 ' + p.name + ' joined the crew!'); GH.Snd.fx('swap'); pT = 1; if (room.isHost) setTimeout(() => N.sync(p.pid), 400); });
-    room.on('leave', (p) => { removeRemote(p.pid); g.UI.toast(p.name + ' left the crew', true); });
+    room.on('join', (p) => { if (p.pid === room.pid) return; GH.UI.toast('👋 ' + p.name + ' joined the crew!'); GH.Snd.fx('swap'); pT = 1; if (room.isHost) setTimeout(() => N.sync(p.pid), 400); });
+    room.on('leave', (p) => { removeRemote(p.pid); GH.UI.toast(p.name + ' left the crew', true); });
     room.on('players', () => { pT = 1; });
     room.on('message', (d, from) => onMsg(d, from));
-    room.on('reconnecting', () => g.UI.toast('Lost the host - reconnecting…', true));
-    room.on('error', (e) => { if (!g.playing) { msg(e.title + ': ' + e.message); g.room = null; N.room = null; return; } g.UI.toast(e.title + ' - you can keep playing solo.', true); N.leave(); });
+    room.on('reconnecting', () => GH.UI.toast('Lost the host - reconnecting…', true));
+    room.on('error', (e) => { if (!g.playing) { msg(e.title + ': ' + e.message); g.room = null; N.room = null; return; } GH.UI.toast(e.title + ' - you can keep playing solo.', true); N.leave(); });
     room.start();
   }
-  N.host = function () { const g = G(); msg('Opening a room…', true); bind(GN.createRoom({ role: 'host', name: g.myName(), color: g.UI.color, max: 3 })); };
-  N.join = function (code) { const g = G(); msg('Joining ' + code + '…', true); bind(GN.createRoom({ role: 'join', code, name: g.myName(), color: g.UI.color })); };
+  N.host = function () { const g = G(); msg('Opening a room…', true); bind(GN.createRoom({ role: 'host', name: g.myName(), color: GH.UI.color, max: 3 })); };
+  N.join = function (code) { const g = G(); msg('Joining ' + code + '…', true); bind(GN.createRoom({ role: 'join', code, name: g.myName(), color: GH.UI.color })); };
   N.leave = function () {
     const g = G(); if (!g.room) return; try { g.room.leave(); } catch (e) {} g.room = null; N.room = null;
     if (N.badge) { try { N.badge.remove(); } catch (e) {} N.badge = null; }
     for (const k in g.remotes) removeRemote(k);
   };
   // guests pick a free role if theirs is taken
-  N.fixRole = function () { const g = G(); const t = g.takenRoles(); if (t[g.hero.role]) { const free = D.ROLE_IDS.find((r) => !t[r]); if (free) { g.setRole(free, true); g.UI.toast(D.ROLES[free].icon + ' That role was taken - you are the ' + D.ROLES[free].name + '!'); } } };
+  N.fixRole = function () { const g = G(); const t = g.takenRoles(); if (t[g.hero.role]) { const free = D.ROLE_IDS.find((r) => !t[r]); if (free) { g.setRole(free, true); GH.UI.toast(D.ROLES[free].icon + ' That role was taken - you are the ' + D.ROLES[free].name + '!'); } } };
+  function isHostPid(pid) { const r = N.room; if (!r) return false; const h = r.players().find((q) => q.host); return !!h && h.pid === pid; }
   function removeRemote(pid) { const g = G(), r = g.remotes[pid]; if (!r) return; if (r.model && r.model.parent) r.model.parent.remove(r.model); delete g.remotes[pid]; }
 
   /* host -> a guest: full level state so late joiners match */
@@ -50,7 +51,7 @@
       if (s.target && s.target !== 'home') { S.target = s.target; if (s.target.drop) { L.targetG.position.set(s.target.drop[0], 0, s.target.drop[1]); L.targetG.children[0].visible = false; } else { L.targetM.visible = false; L.halo.visible = false; } }
       if (d.ph && d.ph !== 'done') g.phase = d.ph; g.time = d.tm || 0; if (d.stats) Object.assign(g.stats, d.stats); g.carryRemote = Object.assign({}, d.cr || {}); if (d.hc) g.carryRemote[d.hc[0]] = d.hc[1];
       N.fixRole(); };
-    if (g.lvl !== d.lv) g.UI.fade(() => { g.loadLevel(d.lv); go(); if (!D.LEVELS[d.lv].hub) g.UI.briefing(d.lv); }); else go();
+    if (g.lvl !== d.lv) GH.UI.fade(() => { g.loadLevel(d.lv); go(); if (!D.LEVELS[d.lv].hub) GH.UI.briefing(d.lv); }); else go();
     N.waitSync = false;
   }
 
@@ -58,7 +59,7 @@
   N.tick = function (dt) {
     const g = G(), room = g.room; if (!room || !room.opened || !g.hero) return;
     pT += dt; const h = g.hero;
-    if (pT >= 0.1) { pT = 0; room.broadcast({ t: 'p', id: room.pid, n: g.myName(), c: g.UI.color, lv: g.lvl, x: +h.x.toFixed(2), y: +h.y.toFixed(2), z: +h.z.toFixed(2), yw: +h.yaw.toFixed(2), sp: +h.spd.toFixed(1), rf: h.roof ? 1 : 0, vt: h.vent ? 1 : 0, iv: +h.inv.toFixed(1), an: h.anim ? (h.anim.safe ? 2 : 1) : 0, ak: h.anim ? h.anim.kind : '', hk: h.hack ? 1 : 0, ca: h.carry || '', ro: h.role, o: g.save.outfit[h.role], ph: g.phase }); }
+    if (pT >= 0.1) { pT = 0; room.broadcast({ t: 'p', id: room.pid, n: g.myName(), c: GH.UI.color, lv: g.lvl, x: +h.x.toFixed(2), y: +h.y.toFixed(2), z: +h.z.toFixed(2), yw: +h.yaw.toFixed(2), sp: +h.spd.toFixed(1), rf: h.roof ? 1 : 0, vt: h.vent ? 1 : 0, iv: +h.inv.toFixed(1), an: h.anim ? (h.anim.safe ? 2 : 1) : 0, ak: h.anim ? h.anim.kind : '', hk: h.hack ? 1 : 0, ca: h.carry || '', ro: h.role, o: g.save.outfit[h.role], ph: g.phase }); }
     if (room.isHost && !g.hub) { wT += dt; if (wT >= 0.1) { wT = 0; room.broadcast({ t: 'w', id: room.pid, lv: g.lvl, s: GH.AI.snap(), tm: +g.time.toFixed(1) }); } }
     // remote avatars
     for (const k in g.remotes) { const r = g.remotes[k]; const same = r.lvl === g.lvl;
@@ -81,9 +82,9 @@
       let r = g.remotes[d.id]; if (!r) { r = g.remotes[d.id] = { pid: d.id }; }
       const role = D.ROLES[d.ro] ? d.ro : 'hacker', outfit = D.OUTFITS.some((o) => o.id === d.o) ? d.o : 'classic';
       Object.assign(r, { name: GN.cleanName(d.n), color: GN.cleanColor(d.c), lvl: d.lv, x: +d.x || 0, y: +d.y || 0, z: +d.z || 0, yw: +d.yw || 0, sp: +d.sp || 0, roof: !!d.rf, vent: !!d.vt, inv: +d.iv || 0, an: d.an, ak: String(d.ak || ''), hk: d.hk, carry: d.ca || null, role, outfit, seen: performance.now() });
-      if (!room.isHost && role === g.hero.role && d.id < room.pid && !N.roleWarn) { N.fixRole(); }
+      if (!room.isHost && role === g.hero.role && (isHostPid(d.id) || d.id < room.pid)) N.fixRole();
     } else if (d.t === 'w') { if (room.isHost || d.lv !== g.lvl) return; GH.AI.applySnap(d.s); if (Math.abs((d.tm || 0) - g.time) > 2 && g.phase !== 'done') g.time = d.tm; }
-    else if (d.t === 'req') { if (!room.isHost || d.lv !== g.lvl) return; const dd = Object.assign({}, d.d || {}, { by: d.id }); if (d.e === 'finishReq') { g.finish(); return; } if (['lock', 'cam', 'laser', 'secret', 'crate', 'loot', 'carry', 'uncarry', 'deliver', 'target', 'tdrop', 'gadget', 'heat', 'ping'].indexOf(d.e) < 0) return; g.ev(d.e, dd); }
+    else if (d.t === 'req') { if (!room.isHost || d.lv !== g.lvl) return; const dd = Object.assign({}, d.d || {}, { by: from || d.id }); if (d.e === 'finishReq') { g.finish(); return; } if (['lock', 'cam', 'laser', 'secret', 'crate', 'loot', 'carry', 'uncarry', 'deliver', 'target', 'tdrop', 'gadget', 'heat', 'ping'].indexOf(d.e) < 0) return; g.ev(d.e, dd); }
     else if (d.t === 'ev') { if (room.isHost) return; if (d.e !== 'lvl' && d.lv !== g.lvl) return; g.applyEv(d.e, d.d || {}); }
     else if (d.t === 'caught') { if (d.to && d.to !== room.pid) return; g.onCaught(); }
     else if (d.t === 'sync') { if (room.isHost) return; applySync(d); }
