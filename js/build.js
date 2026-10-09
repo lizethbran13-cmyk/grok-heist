@@ -86,7 +86,7 @@
     dome.renderOrder = -10; scene.add(dome); L.dome = dome;
     const hemi = new T.HemisphereLight(sk.hs, def.water ? '#a9dcf2' : sk.hg, sk.hi * 0.62); scene.add(hemi);
     const sun = new T.DirectionalLight(sk.sun, sk.si * 0.6); sun.position.set(30, 50, 22); scene.add(sun); scene.add(sun.target); L.sun = sun; L.sunOff = new T.Vector3(18, 34, 14);
-    sun.castShadow = !low; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 120; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
+    sun.castShadow = !low; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 120; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.05;
     const fill = new T.DirectionalLight(def.sky === 'night' ? '#ff9ae8' : '#ffffff', def.sky === 'night' ? 0.35 : 0.3); fill.position.set(-20, 18, -30); scene.add(fill);
     if (def.sky === 'night') { // stars + moon
       const n = 600, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, e = 0.15 + Math.random() * 1.3; pos[i * 3] = Math.cos(a) * Math.cos(e) * 380; pos[i * 3 + 1] = Math.sin(e) * 380; pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * 380; }
@@ -122,7 +122,7 @@
       else FL.geo(new T.BoxGeometry(2.0, 0.14, 2.0), r.floor, X, -0.07, Z);
     }
     // grout / sub-floor under building
-    { const [x0, z0, x1, z1] = P.bbox; S.box((x1 - x0 + 1) * C, 0.1, (z1 - z0 + 1) * C, 0.04, '#5b4b5f', (x0 + x1 + 1) * C / 2, -0.16, (z0 + z1 + 1) * C / 2); }
+    { const [x0, z0, x1, z1] = P.bbox; for (let z = z0; z <= z1; z++) { let a = -1; for (let x = x0; x <= x1 + 1; x++) { const gap = x > x1 || P.ch[z][x] === '~'; if (!gap && a < 0) a = x; if (gap && a >= 0) { S.box((x - a) * C, 0.1, C, 0.02, '#5b4b5f', (a + x) * C / 2, -0.16, wx(z)); a = -1; } } } } // sub-floor under the tiles, open over gaps/pits
 
     /* ---------- walls ---------- */
     const used = {}; const runs = [];
@@ -187,12 +187,12 @@
     }
     function buildGap(x, z, X, Z) {
       const g = th.gap || 'choco', depth = g === 'sky' ? 5 : g === 'balls' ? 1.2 : 1.0;
-      DIRS.forEach(([dx, dz]) => { if (ch(x + dx, z + dz) === '~') return; const fx = X + dx * 0.98, fz = Z + dz * 0.98; const col = g === 'pool' ? '#e0f2fe' : g === 'sky' ? '#c4b5fd' : g === 'balls' ? '#2563eb' : '#c2185b';
+      DIRS.forEach(([dx, dz]) => { if (ch(x + dx, z + dz) === '~') return; const fx = X + dx * 0.98, fz = Z + dz * 0.98; const col = g === 'pool' ? '#e0f2fe' : g === 'sky' ? '#efeaff' : g === 'balls' ? '#2563eb' : '#c2185b';
         if (dx) S.geo(new T.BoxGeometry(0.12, depth, 2.0), col, fx, -depth / 2, fz); else S.geo(new T.BoxGeometry(2.0, depth, 0.12), col, fx, -depth / 2, fz);
         const rim = g === 'pool' ? '#ffffff' : g === 'sky' ? '#ffd23f' : g === 'balls' ? '#ffd23f' : '#ff9ad5'; if (dx) S.box(0.3, 0.2, 2.0, 0.08, rim, X + dx * 0.9, 0.06, Z); else S.box(2.0, 0.2, 0.3, 0.08, rim, X, 0.06, Z + dz * 0.9); });
       if (g === 'choco') { const m = new T.Mesh(new T.BoxGeometry(2, 0.1, 2), M.MAT.choco); m.position.set(X, -0.55, Z); scene.add(m); if (rnd(x, z) < 0.3) S.box(0.4, 0.3, 0.4, 0.12, '#ffffff', X + 0.3, -0.42, Z - 0.2, 0, rnd(z, x) * 3, 0); }
       else if (g === 'pool') { S.geo(new T.BoxGeometry(2, 0.1, 2), (x + z) % 2 ? '#38bdf8' : '#7dd3fc', X, -1.0, Z); const m = new T.Mesh(new T.BoxGeometry(2, 0.08, 2), M.MAT.water); m.position.set(X, -0.3, Z); scene.add(m); }
-      else if (g === 'sky') { if (rnd(x, z) < 0.4) S.sph(1.2, '#ffffff', X, -4.5, Z, 1, 0.5, 1); S.geo(new T.BoxGeometry(2, 0.1, 2), '#dbeafe', X, -5.2, Z); }
+      else if (g === 'sky') { S.sph(1.25, '#ffffff', X + (rnd(x, z) - 0.5) * 0.6, -3.9, Z + (rnd(z, x) - 0.5) * 0.6, 1, 0.5, 1, 0, 0, 0, 'glow'); if (rnd(x, z) < 0.5) S.sph(0.8, '#fde7ff', X - 0.5, -3.4, Z + 0.4, 1, 0.6, 1, 0, 0, 0, 'glow'); S.geo(new T.BoxGeometry(2, 0.1, 2), '#8fd0ff', X, -5.0, Z, 0, 0, 0, 1, 1, 1, 'glow'); }
       else { for (let k = 0; k < (low ? 5 : 10); k++) S.sph(0.24, PR.F && ['#ef4444', '#22d3ee', '#ffd23f', '#4ade80', '#ff4fd8', '#a78bfa'][(x + z + k) % 6], X - 0.7 + rnd(x + k, z) * 1.4, -0.25 - (k % 2) * 0.2, Z - 0.7 + rnd(z + k, x) * 1.4, 1, 1, 1, 0, 0, 0, 'gloss', 10, 8); }
     }
 
@@ -416,7 +416,8 @@
     const sg = S.group(true); sg.children.forEach((m) => { m.receiveShadow = true; }); scene.add(sg);
     const fg = FL.group(false); fg.children.forEach((m) => { m.receiveShadow = true; m.castShadow = false; }); scene.add(fg);
     L.static = [sg, fg];
-    { const base = [M.mat, M.matGloss, M.matGlow]; scene.traverse((o) => { if (o.isMesh && base.indexOf(o.material) >= 0) o.material = M.cut(o.material); }); }
+    { const base = [M.mat, M.matGloss, M.matGlow], list = []; scene.traverse((o) => { if (o.isMesh && base.indexOf(o.material) >= 0) list.push(o); }); L.caps = [];
+      list.forEach((o) => { o.material = M.cut(o.material); o.customDepthMaterial = M.cutDepth; const c = new T.Mesh(o.geometry, M.capMat); c.position.copy(o.position); c.rotation.copy(o.rotation); c.scale.copy(o.scale); c.visible = false; c.castShadow = false; c.receiveShadow = false; c.matrixAutoUpdate = o.matrixAutoUpdate; if (o.parent) o.parent.add(c); c.updateMatrix(); L.caps.push({ c, o }); }); }
     L.windows = winN;
     return L;
   };

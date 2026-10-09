@@ -63,7 +63,7 @@
       if (gu.st === 'grab') { gu.spd = 0; gu.t -= dt; if (gu.t <= 0) { gu.st = 'return'; gu.slipImm = 1; backToPatrol(gu); } return; }
       if (gu.st === 'stun') { gu.t -= dt; gu.yaw += dt * 9 * Math.max(0, gu.t - 3); gu.spd = 0; if (gu.t <= 0) { gu.st = 'return'; gu.slipImm = 3; backToPatrol(gu); } return; }
       // banana slip
-      for (const q of AI.gad) if (q.k === 'banana' && !q.used && gu.slipImm <= 0 && gu.st !== 'sleep' && Math.hypot(q.x - gu.x, q.z - gu.z) < 0.9) { q.used = true; q.t = 0; gu.st = 'stun'; gu.t = 4.5; gu.meter = {}; G.fx('slip', gu.x, gu.z); G.pop(gu.x, 2.6, gu.z, 'WHOA! 🍌'); return; }
+      for (const q of AI.gad) if (q.k === 'banana' && !q.used && gu.slipImm <= 0 && gu.st !== 'sleep' && Math.hypot(q.x - gu.x, q.z - gu.z) < 0.9) { q.used = true; q.t = 1.6; gu.st = 'stun'; gu.t = 4.5; gu.meter = {}; G.fx('slip', gu.x, gu.z); G.pop(gu.x, 2.6, gu.z, 'WHOA! 🍌'); return; }
       // vision
       const rg = range(gu), hf = half(gu); let best = null, bestD = 99;
       players.forEach((p) => { const d = canSee(gu.x, gu.z, gu.yaw, hf, rg, p); if (d) { if (d < bestD) { bestD = d; best = p; } const rate = (gu.st === 'chase' ? 3 : 1.05) * (1.7 - d / rg) * shoes * (p.carry === 'big' ? 1.25 : 1) * (AI.alarmT > 0 ? 1.4 : 1) * (d < 1.4 ? 3 : 1); gu.meter[p.pid] = Math.min(1.2, (gu.meter[p.pid] || 0) + dt * rate); } else gu.meter[p.pid] = Math.max(0, (gu.meter[p.pid] || 0) - dt * 0.3); });
@@ -116,7 +116,10 @@
       const m = gu.m; const k = Math.min(1, dt * 12); if (G.isGuest()) { m.position.x = U.lerp(m.position.x, gu.x, k); m.position.z = U.lerp(m.position.z, gu.z, k); m.rotation.y = U.lerpAng(m.rotation.y, gu.yaw, k); } else { m.position.set(gu.x, 0, gu.z); m.rotation.y = gu.yaw; }
       M.animPerson(m, dt, gu.st === 'stun' || gu.st === 'sleep' ? 0 : gu.spd || 0, t);
       if (gu.st === 'grab') { const u = m.userData; u.arms[0].rotation.x = -2.95 + Math.sin(t * 16) * 0.12; u.arms[1].rotation.x = -2.95 - Math.sin(t * 16) * 0.12; u.arms[0].rotation.z = -0.3; u.arms[1].rotation.z = 0.3; u.body.position.y = Math.abs(Math.sin(t * 8)) * 0.08; } else if (m.userData.arms) { m.userData.arms[0].rotation.z = -0.12; m.userData.arms[1].rotation.z = 0.12; }
-      if (gu.st === 'sleep') { m.userData.body.rotation.x = 0.25; } else m.userData.body.rotation.x = gu.st === 'stun' ? Math.sin(t * 10) * 0.3 : 0;
+      if (gu.st === 'sleep') { m.userData.body.rotation.x = 0.25; } else if (gu.st === 'stun') { gu._se = (gu._se || 0) + dt; const u = m.userData, el = gu._se; // banana slip: feet fly up, flat on the back, legs kicking, then a dizzy wobble
+        if (el < 1.7) { const k = Math.min(1, el / 0.22); u.body.rotation.x = -1.45 * k; u.body.position.y = 0.32 * k + Math.sin(Math.min(1, el / 0.22) * Math.PI) * 0.5; u.legs[0].rotation.x = -1.2 + Math.sin(t * 22) * 0.5; u.legs[1].rotation.x = -1.2 - Math.sin(t * 22) * 0.5; u.arms[0].rotation.x = -2.6 + Math.sin(t * 18) * 0.4; u.arms[1].rotation.x = -2.6 - Math.sin(t * 18) * 0.4; }
+        else { u.body.rotation.x = Math.sin(t * 10) * 0.3 * Math.min(1, (el - 1.7) / 0.4) - 1.45 * Math.max(0, 1 - (el - 1.7) / 0.4); u.body.position.y = 0.32 * Math.max(0, 1 - (el - 1.7) / 0.4); } }
+      else { m.userData.body.rotation.x = 0; gu._se = 0; }
       const ic = gu.st === 'grab' ? '' : gu.st === 'chase' ? '!' : (gu.st === 'sus' || gu.st === 'investigate' || gu.st === 'search') ? '?' : (gu.st === 'sleep' || gu.st === 'stun') ? 'z' : '';
       if (ic !== gu.icon) { gu.icon = ic; const u = m.userData.icon; while (u.children.length) u.remove(u.children[0]); if (ic) u.add(M.icon(ic)); }
       if (ic) { m.userData.icon.position.y = 2.75 + Math.sin(t * 5) * 0.08; m.userData.icon.rotation.y = G.camYaw - m.rotation.y + Math.PI; }
@@ -131,7 +134,7 @@
     AI.gad.forEach((q) => { if (!q.m) { q.m = q.k === 'banana' ? M.banana() : q.k === 'decoy' ? M.decoy() : q.k === 'smoke' ? M.smoke() : M.mirror(); L.scene.add(q.m); if (q.k === 'mirror') { const beam = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 6, 6), M.MAT.laser); beam.position.set(0, 4, 0); beam.rotation.z = 0.5; q.m.add(beam); } }
       q.m.position.set(q.x, 0, q.z); if (q.k === 'decoy') { q.m.rotation.y = q.yaw; q.m.userData.key.rotation.z += dt * 8; q.m.position.y = Math.abs(Math.sin(t * 12)) * 0.08; }
       if (q.k === 'smoke') { const life = q.life || 6, a = q.t / life; const s = q.r / 3 * (a > 0.9 ? (1 - a) * 10 : 1); q.m.scale.setScalar(Math.max(0.05, s)); q.m.material.opacity = U.clamp(q.t, 0, 1) * 0.92; q.m.rotation.y += dt * 0.3; q.m.position.y = Math.sin(t * 1.3 + q.x) * 0.08; const br = 1 + Math.sin(t * 2.1 + q.z) * 0.04; q.m.scale.x *= br; q.m.scale.z *= 2 - br; }
-      if (q.k === 'banana') q.m.visible = !q.used; });
+      if (q.k === 'banana') { q.m.visible = !q.used || q.t > 0; if (q.used) { q.m.rotation.y += dt * 12; q.m.position.y = Math.max(0, Math.sin((1.6 - q.t) * 4)) * 0.6; } } });
   };
 
   /* ---------- net snapshot ---------- */

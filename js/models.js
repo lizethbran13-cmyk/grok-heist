@@ -37,27 +37,26 @@
   // back faces seen through the clip are painted a flat dark cap colour so the stubs read as solid, capped walls (no dithering, no transparency)
   M.cutU = { uHero: { value: new T.Vector3() }, uCam: { value: new T.Vector3() }, uCut: { value: 0 }, uStub: { value: 1.2 } };
   const cutCache = new Map();
-  M.cut = function (mat) {
-    if (cutCache.has(mat)) return cutCache.get(mat); const m = mat.clone(); m.side = T.DoubleSide; m.shadowSide = T.BackSide;
-    m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, M.cutU);
-      sh.vertexShader = 'varying vec3 vCutW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = 'varying vec3 vCutW;\nuniform vec3 uHero;\nuniform vec3 uCam;\nuniform float uCut;\nuniform float uStub;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  const REG = `
   float cutReg = 0.0;
   if (uCut > 0.5) {
     vec2 dd = uCam.xz - uHero.xz; float ln = length(dd); vec2 nn = dd / max(ln, 0.001); vec2 pp = vCutW.xz - uHero.xz;
     float along = dot(pp, nn); float side = abs(pp.x * nn.y - pp.y * nn.x);
     if (along > 0.5 && along < ln + 10.0 && side < 3.2 + along * 0.75) cutReg = 1.0;
   }
-  if (cutReg > 0.5 && vCutW.y > uStub) discard;
-  if (!gl_FrontFacing && cutReg < 0.5) discard;`).replace('#include <dithering_fragment>', `#include <dithering_fragment>
-  if (!gl_FrontFacing) {
-  #ifdef USE_COLOR
-    gl_FragColor = vec4(vColor * 0.42 + 0.04, 1.0);
-  #else
-    gl_FragColor = vec4(0.25, 0.22, 0.3, 1.0);
-  #endif
-  }`); };
-    m.customProgramCacheKey = () => 'cut2' + mat.uuid; cutCache.set(mat, m); return m; };
+  if (cutReg > 0.5 && vCutW.y > uStub) discard;`;
+  const inject = (sh, extra) => { Object.assign(sh.uniforms, M.cutU);
+    sh.vertexShader = 'varying vec3 vCutW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'varying vec3 vCutW;\nuniform vec3 uHero;\nuniform vec3 uCam;\nuniform float uCut;\nuniform float uStub;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>' + REG + (extra || '')); };
+  // front faces: the normal lit material, clipped to a stub inside the cut zone
+  M.cut = function (mat) {
+    if (cutCache.has(mat)) return cutCache.get(mat); const m = mat.clone(); m.shadowSide = T.BackSide;
+    m.onBeforeCompile = (sh) => inject(sh); m.customProgramCacheKey = () => 'cut3' + mat.uuid; cutCache.set(mat, m); return m; };
+  // solid top cap: the inside (back faces) of clipped walls, drawn flat and dark, pushed behind any coplanar surface so it never z-fights
+  // shadows follow the cut too, so clipped walls don't throw shadows (or shadow acne) from their missing tops
+  M.cutDepth = new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking }); M.cutDepth.onBeforeCompile = (sh) => inject(sh); M.cutDepth.customProgramCacheKey = () => 'cutd3';
+  M.capMat = new T.MeshBasicMaterial({ vertexColors: true, color: '#6e6a78', side: T.BackSide, polygonOffset: true, polygonOffsetFactor: 3, polygonOffsetUnits: 6 });
+  M.capMat.onBeforeCompile = (sh) => inject(sh, '\n  if (cutReg < 0.5) discard;'); M.capMat.customProgramCacheKey = () => 'cap3';
   B.prototype.group = function (castShadow) { const g = new T.Group(); this.meshes(castShadow).forEach((m) => g.add(m)); return g; };
   B.prototype.geometry = function () { return U.merge(this.parts.main.concat(this.parts.gloss)); };
   M.B = B;

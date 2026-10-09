@@ -367,7 +367,7 @@
     // sun follows
     const h = G.hero; L.sun.position.set(h.x + L.sunOff.x, L.sunOff.y, h.z + L.sunOff.z); L.sun.target.position.set(h.x, 0, h.z); L.dome.position.copy(G.cam.position);
     camStep(dt); FX.step(dt);
-    { const cu = M.cutU; cu.uCut.value = (G.playing && !G.escape && G.mode !== 'title' && !h.roof && G.inside) ? 1 : 0; cu.uHero.value.set(h.x, h.y + 1.0, h.z); cu.uCam.value.copy(G.cam.position); } Snd.tick(dt, AI.alarmT > 0);
+    { const cu = M.cutU; cu.uCut.value = (G.playing && !G.escape && G.mode !== 'title' && !h.roof && G.inside) ? 1 : 0; cu.uHero.value.set(h.x, h.y + 1.0, h.z); cu.uCam.value.copy(G.cam.position); const on = cu.uCut.value > 0.5; (L.caps || []).forEach((q) => { q.c.visible = on && q.o.visible; }); } Snd.tick(dt, AI.alarmT > 0);
   };
 
   /* ---------- quality ---------- */
