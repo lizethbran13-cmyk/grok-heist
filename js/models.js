@@ -33,20 +33,31 @@
     return out;
   };
   // x-ray cutaway: level geometry between the camera and the hero is cut away (dithered edge) so walls never hide you
-  M.cutU = { uHero: { value: new T.Vector3() }, uCam: { value: new T.Vector3() }, uCut: { value: 0 } };
+  // "walls-down" cutaway (Sims style): inside a building, everything between the camera and the hero is clipped to a short stub;
+  // back faces seen through the clip are painted a flat dark cap colour so the stubs read as solid, capped walls (no dithering, no transparency)
+  M.cutU = { uHero: { value: new T.Vector3() }, uCam: { value: new T.Vector3() }, uCut: { value: 0 }, uStub: { value: 1.2 } };
   const cutCache = new Map();
   M.cut = function (mat) {
-    if (cutCache.has(mat)) return cutCache.get(mat); const m = mat.clone();
+    if (cutCache.has(mat)) return cutCache.get(mat); const m = mat.clone(); m.side = T.DoubleSide; m.shadowSide = T.BackSide;
     m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, M.cutU);
       sh.vertexShader = 'varying vec3 vCutW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = 'varying vec3 vCutW;\nuniform vec3 uHero;\nuniform vec3 uCam;\nuniform float uCut;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-  if (uCut > 0.5 && vCutW.y > 0.35) {
-    vec3 ab = uHero - uCam; float t = dot(vCutW - uCam, ab) / max(dot(ab, ab), 0.001);
-    if (t > 0.0 && t < 0.97) { float d = length(vCutW - (uCam + ab * t)); float r = 1.25 + 0.9 * t;
-      if (d < r) discard;
-      if (d < r + 0.45) { vec2 q = floor(gl_FragCoord.xy * 0.5); if (mod(q.x + q.y, 2.0) < 1.0) discard; } }
+      sh.fragmentShader = 'varying vec3 vCutW;\nuniform vec3 uHero;\nuniform vec3 uCam;\nuniform float uCut;\nuniform float uStub;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  float cutReg = 0.0;
+  if (uCut > 0.5) {
+    vec2 dd = uCam.xz - uHero.xz; float ln = length(dd); vec2 nn = dd / max(ln, 0.001); vec2 pp = vCutW.xz - uHero.xz;
+    float along = dot(pp, nn); float side = abs(pp.x * nn.y - pp.y * nn.x);
+    if (along > 0.5 && along < ln + 10.0 && side < 3.2 + along * 0.75) cutReg = 1.0;
+  }
+  if (cutReg > 0.5 && vCutW.y > uStub) discard;
+  if (!gl_FrontFacing && cutReg < 0.5) discard;`).replace('#include <dithering_fragment>', `#include <dithering_fragment>
+  if (!gl_FrontFacing) {
+  #ifdef USE_COLOR
+    gl_FragColor = vec4(vColor * 0.42 + 0.04, 1.0);
+  #else
+    gl_FragColor = vec4(0.25, 0.22, 0.3, 1.0);
+  #endif
   }`); };
-    m.customProgramCacheKey = () => 'cut' + mat.uuid; cutCache.set(mat, m); return m; };
+    m.customProgramCacheKey = () => 'cut2' + mat.uuid; cutCache.set(mat, m); return m; };
   B.prototype.group = function (castShadow) { const g = new T.Group(); this.meshes(castShadow).forEach((m) => g.add(m)); return g; };
   B.prototype.geometry = function () { return U.merge(this.parts.main.concat(this.parts.gloss)); };
   M.B = B;
@@ -85,9 +96,10 @@
     b.sph(0.07, skin, -0.29, hy, 0.01); b.sph(0.07, skin, 0.29, hy, 0.01);
     b.sph(0.045, M.darker(skin, 0.06), 0, hy - 0.04, 0.29);
     // eyes (glossy, with highlight)
-    [-1, 1].forEach((s) => { b.sph(0.055, '#1b1530', s * 0.11, hy + 0.03, 0.255, 0.85, 1.15, 0.6, 0, 0, 0, 'gloss'); b.sph(0.018, '#ffffff', s * 0.11 + 0.018, hy + 0.06, 0.29, 1, 1, 1, 0, 0, 0, 'gloss'); });
+    [-1, 1].forEach((s) => { b.sph(0.066, '#1b1530', s * 0.115, hy + 0.03, 0.25, 0.85, 1.2, 0.6, 0, 0, 0, 'gloss'); b.sph(0.022, '#ffffff', s * 0.115 + 0.02, hy + 0.07, 0.29, 1, 1, 1, 0, 0, 0, 'glow'); b.sph(0.01, '#ffffff', s * 0.115 - 0.016, hy + 0.0, 0.292, 1, 1, 1, 0, 0, 0, 'glow');
+      b.box(0.1, 0.024, 0.03, 0.01, o.bald ? M.darker(skin, 0.35) : M.darker(hair, 0.15), s * 0.12, hy + 0.15, 0.262, -0.25, 0, -s * 0.18); });
     b.sph(0.05, '#ff9fb3', -0.18, hy - 0.07, 0.23, 1, 0.6, 0.4); b.sph(0.05, '#ff9fb3', 0.18, hy - 0.07, 0.23, 1, 0.6, 0.4);
-    b.tor(0.05, 0.012, '#8a3a3a', 0, hy - 0.1, 0.27, 0, 0, Math.PI, null, Math.PI);
+    b.tor(0.065, 0.016, '#8a3a3a', 0, hy - 0.095, 0.268, -0.15, 0, Math.PI, null, Math.PI);
     // hair
     if (o.bald) b.sph(0.305, skin, 0, hy + 0.02, -0.02, 1, 0.9, 1);
     else { b.sph(0.315, hair, 0, hy + 0.06, -0.04, 1.02, 0.92, 1.0, -0.3, 0, 0, null, 20, 14); if (o.long) b.cap(0.2, 0.35, hair, 0, hy - 0.2, -0.18, 0.2, 0, 0); if (o.bun) b.sph(0.13, hair, 0, hy + 0.3, -0.18); if (o.pig) { b.sph(0.11, hair, -0.3, hy - 0.05, -0.1); b.sph(0.11, hair, 0.3, hy - 0.05, -0.1); } }
@@ -256,8 +268,10 @@
   M.decoy = function () { const g = new T.Group(); const b = new B(); b.sph(0.32, '#ff7ab8', 0, 0.42, 0, 1, 0.9, 1.1); b.sph(0.22, '#ff7ab8', 0, 0.82, 0.12); b.sph(0.09, '#ff7ab8', -0.16, 1.0, 0.1); b.sph(0.09, '#ff7ab8', 0.16, 1.0, 0.1); b.sph(0.04, '#111', -0.07, 0.86, 0.32); b.sph(0.04, '#111', 0.07, 0.86, 0.32); b.cyl(0.06, 0.06, 0.08, '#ffd23f', 0, 0.78, 0.33, Math.PI / 2, 0, 0, 'gloss');
     b.cyl(0.03, 0.03, 0.3, '#9ca3af', 0, 0.45, -0.38, Math.PI / 2, 0, 0); attach(g, b); const key = new B(); key.tor(0.1, 0.025, '#ffd23f', 0, 0, 0, 0, Math.PI / 2, 0, 'gloss'); key.tor(0.1, 0.025, '#ffd23f', 0, 0, 0, 0, 0, 0, 'gloss'); const kp = pivot(g, 0, 0.45, -0.55); attach(kp, key); g.userData.key = kp; return g; };
   M.mirror = function () { const g = new T.Group(); const b = new B(); b.cyl(0.25, 0.3, 0.1, '#64748b', 0, 0.05, 0); b.cyl(0.04, 0.04, 0.8, '#94a3b8', 0, 0.45, 0); b.tor(0.32, 0.05, '#ffd23f', 0, 1.05, 0, 0, 0, 0, 'gloss'); b.cyl(0.3, 0.3, 0.03, '#e0f7ff', 0, 1.05, 0, Math.PI / 2, 0, 0, 'glow'); attach(g, b); return g; };
-  M.smoke = function () { const b = new B(); for (let i = 0; i < 14; i++) { const a = i * 2.4, r = 0.8 + (i % 4) * 0.55; b.sph(0.9 + (i % 3) * 0.35, i % 2 ? '#ffc4ec' : '#f5d0fe', Math.sin(a) * r, 0.7 + (i % 5) * 0.45, Math.cos(a) * r, 1, 0.85, 1, 0, 0, 0, null, 10, 8); }
-    const m = new T.Mesh(b.geometry(), new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: '#ffd6f5', emissiveIntensity: 0.35, transparent: true, opacity: 0.85, depthWrite: false })); return m; };
+  M.smoke = function () { const b = new B(); const cols = ['#ff6fc2', '#e79bff', '#ffa8de', '#b28dff', '#ff8fd0'];
+    for (let i = 0; i < 26; i++) { const a = i * 2.39996, r = 0.3 + (i % 5) * 0.5, y = 0.6 + (i % 7) * 0.42 - r * 0.12; b.sph(0.85 + (i % 3) * 0.4, cols[i % cols.length], Math.sin(a) * r, y, Math.cos(a) * r, 1, 0.82, 1, 0, 0, 0, null, 12, 9); }
+    for (let i = 0; i < 6; i++) { const a = i * 1.047; b.sph(0.5, '#ffffff', Math.sin(a) * 2.2, 0.35, Math.cos(a) * 2.2, 1, 0.6, 1, 0, 0, 0, null, 10, 7); }
+    const m = new T.Mesh(b.geometry(), new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: '#ff9ad8', emissiveIntensity: 0.22, transparent: true, opacity: 0.92, depthWrite: false })); return m; };
   M.hook = function () { const b = new B(); b.cyl(0.04, 0.04, 0.3, '#64748b', 0, 0, 0); for (let i = 0; i < 3; i++) b.tor(0.12, 0.03, '#94a3b8', Math.sin(i * 2.1) * 0.08, -0.15, Math.cos(i * 2.1) * 0.08, 0, i * 2.1, 0, 'gloss', Math.PI); return b.group(); };
 
   /* ---------- getaway vehicles ---------- */

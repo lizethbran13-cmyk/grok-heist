@@ -111,7 +111,7 @@
 
   /* ================= 3. CRUISE SHIP ================= */
   D.LEVELS.ship = {
-    id: 'ship', n: 3, name: 'Cruise Ship', full: 'S.S. Sunny Sundae', icon: '🛳️', sky: 'day', ground: '#2fb5e8', street: '#c99a62', water: true, W: 46, H: 30,
+    id: 'ship', n: 3, name: 'Cruise Ship', full: 'S.S. Sunny Sundae', icon: '🛳️', sky: 'day', ground: '#2fb5e8', street: '#c99a62', water: true, waterY: -2.2, W: 46, H: 30,
     target: { name: 'Golden Rubber Duck', icon: '🦆', model: 'duck' }, vehicle: 'boat', guard: 'sailor', par: 300,
     story: 'Baron Grumble is sailing off with the Golden Rubber Duck! It\u2019s locked in the Captain\u2019s Quarters. Sneak aboard and escape by speedboat!',
     big: [{ name: 'Giant Cake', model: 'cake', v: 150 }, { name: 'Treasure Chest', model: 'chest', v: 150 }, { name: 'Golden Anchor', model: 'anchor', v: 150 }],

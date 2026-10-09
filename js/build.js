@@ -8,7 +8,7 @@
     hideout: { facade: '#e07a52', trim: '#fff3e0', roof: '#56607a', base: '#8a3f2a', ext: 'park', win: 'square' },
     candy: { facade: '#ff8fd0', trim: '#ffffff', roof: '#fff1f7', base: '#d9468f', ext: 'candy', gap: 'choco', win: 'round' },
     museum: { facade: '#f2e9da', trim: '#d6c39c', roof: '#7287b8', base: '#b9a27e', ext: 'plaza', win: 'arch' },
-    ship: { facade: '#ffffff', trim: '#1e3a8a', roof: '#eef2f7', base: '#1e3a8a', ext: 'dock', gap: 'pool', win: 'porthole' },
+    ship: { facade: '#ffffff', trim: '#1e3a8a', roof: '#e3b47c', base: '#1e3a8a', ext: 'dock', gap: 'pool', win: 'porthole' },
     castle: { facade: '#ece6ff', trim: '#ffd23f', roof: '#a593ff', base: '#c4b5fd', ext: 'clouds', gap: 'sky', win: 'arch' },
     toys: { facade: '#ffcf33', trim: '#ef4444', roof: '#3b82f6', base: '#2563eb', ext: 'night', gap: 'balls', win: 'square' }
   };
@@ -84,10 +84,10 @@
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: 'uniform vec3 top; uniform vec3 hor; varying vec3 vD; void main(){ float h = max(vD.y, 0.0); gl_FragColor = vec4(mix(hor, top, pow(h, 0.6)), 1.0); }' }));
     dome.renderOrder = -10; scene.add(dome); L.dome = dome;
-    const hemi = new T.HemisphereLight(sk.hs, sk.hg, sk.hi * 0.62); scene.add(hemi);
+    const hemi = new T.HemisphereLight(sk.hs, def.water ? '#a9dcf2' : sk.hg, sk.hi * 0.62); scene.add(hemi);
     const sun = new T.DirectionalLight(sk.sun, sk.si * 0.6); sun.position.set(30, 50, 22); scene.add(sun); scene.add(sun.target); L.sun = sun; L.sunOff = new T.Vector3(18, 34, 14);
     sun.castShadow = !low; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 120; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
-    const fill = new T.DirectionalLight(def.sky === 'night' ? '#ff9ae8' : '#ffffff', def.sky === 'night' ? 0.35 : 0.22); fill.position.set(-20, 18, -30); scene.add(fill);
+    const fill = new T.DirectionalLight(def.sky === 'night' ? '#ff9ae8' : '#ffffff', def.sky === 'night' ? 0.35 : 0.3); fill.position.set(-20, 18, -30); scene.add(fill);
     if (def.sky === 'night') { // stars + moon
       const n = 600, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, e = 0.15 + Math.random() * 1.3; pos[i * 3] = Math.cos(a) * Math.cos(e) * 380; pos[i * 3 + 1] = Math.sin(e) * 380; pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * 380; }
       const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); scene.add(new T.Points(g, new T.PointsMaterial({ color: '#ffffff', size: 2.2, sizeAttenuation: false, fog: false })));
@@ -99,8 +99,8 @@
 
     /* ---------- ground ---------- */
     const cxm = W * C / 2, czm = H * C / 2;
-    if (def.water) { const wm = new T.Mesh(new T.PlaneGeometry(900, 900, 1, 1), M.MAT.water); wm.rotation.x = -Math.PI / 2; wm.position.set(cxm, -0.55, czm); wm.receiveShadow = true; scene.add(wm); L.water = wm;
-      const sb = new T.Mesh(new T.PlaneGeometry(900, 900), new T.MeshStandardMaterial({ color: '#0e7fb8', roughness: 1 })); sb.rotation.x = -Math.PI / 2; sb.position.set(cxm, -3, czm); scene.add(sb); }
+    if (def.water) { const wm = new T.Mesh(new T.PlaneGeometry(900, 900, 1, 1), M.MAT.water); wm.rotation.x = -Math.PI / 2; const WY = def.waterY != null ? def.waterY : -0.55; L.waterY = WY; wm.position.set(cxm, WY, czm); wm.receiveShadow = true; scene.add(wm); L.water = wm;
+      const sb = new T.Mesh(new T.PlaneGeometry(900, 900), new T.MeshStandardMaterial({ color: '#0e7fb8', roughness: 1 })); sb.rotation.x = -Math.PI / 2; sb.position.set(cxm, L.waterY - 2.5, czm); scene.add(sb); }
     else if (def.clouds) { const g = new M.B(); for (let i = 0; i < (low ? 40 : 90); i++) { const a = rnd(i, 5) * Math.PI * 2, r = 30 + rnd(i, 6) * 150; g.sph(6 + rnd(i, 7) * 8, i % 3 ? '#ffffff' : '#f5ecff', cxm + Math.cos(a) * r, -5 - rnd(i, 8) * 3, czm + Math.sin(a) * r, 1, 0.45, 1, 0, 0, 0, null, 10, 7); }
       const m = new T.Mesh(g.geometry(), new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: '#ffffff', emissiveIntensity: 0.25 })); scene.add(m);
       const base = new T.Mesh(new T.PlaneGeometry(900, 900), new T.MeshStandardMaterial({ color: '#f2e9ff', roughness: 1, emissive: '#ffffff', emissiveIntensity: 0.15 })); base.rotation.x = -Math.PI / 2; base.position.set(cxm, -6, czm); scene.add(base); }
@@ -112,7 +112,7 @@
       const c = P.ch[z][x], X = wx(x), Z = wx(z);
       if (c === '#' || c === '~' || c === 'w' || c === 'G' || c === '=') { if (c === 'G' || c === '=') { const r = roomOf(x, z); if (r) FL.geo(tileGeo(1.96, 1.96, 0.14), r.floor, X, -0.07, Z); } continue; }
       if (c === ' ') { // exterior paving
-        if (def.water) { for (let k = 0; k < 4; k++) FL.geo(tileGeo(1.96, 0.46, 0.16), (x + k) % 3 ? '#c99a62' : '#b98a52', X, -0.08, Z - 0.75 + k * 0.5); if ((x + z) % 3 === 0) FL.cyl(0.18, 0.18, 1.2, '#8a5a32', X, -0.6, Z); }
+        if (def.water) { for (let k = 0; k < 4; k++) FL.geo(tileGeo(1.96, 0.46, 0.16), (x + k) % 3 ? '#c99a62' : '#b98a52', X, -0.08, Z - 0.75 + k * 0.5); if ((x + z) % 3 === 0) { const ph = -L.waterY + 1.0; FL.cyl(0.18, 0.18, ph, '#8a5a32', X, -ph / 2, Z); FL.cyl(0.2, 0.2, 0.12, '#5b3a1e', X, L.waterY + 0.1, Z); } if (z === H - 1 || !LG.inside(P, x, z + 1) || P.ch[z + 1][x] !== ' ') FL.box(2.0, 0.22, 0.2, 0.05, '#8a5a32', X, -0.18, Z + 0.92); }
         else { const street = def.street || '#e7dccb'; const k = (x + z) % 2 ? 0 : 0.04; FL.geo(tileGeo(1.94, 1.94, 0.14), M.shift(street, 0, 0, k), X, -0.07, Z); }
         continue;
       }
@@ -149,9 +149,12 @@
           a.box(2.02, 0.7, 0.16, 0.05, th.base, 0, 0.35, 0.02); a.box(2.02, 0.2, 0.2, 0.06, th.trim, 0, WH - 0.35, 0.04);
           const nearDoor = [-1, 1].some((s) => { const q = ch(x + (dz ? s : 0), z + (dx ? s : 0)); return q === 'D' || q === 'L'; }) || P.roofPts.some((p) => p.x === x + dx && p.z === z + dz);
           if (!nearDoor && (x + z) % 2 === 0) { winN++;
-            if (th.win === 'round' || th.win === 'porthole') { a.tor(0.48, 0.1, th.win === 'porthole' ? '#c9962e' : th.trim, 0, 2.0, 0.06, 0, 0, 0, 'gloss'); a.cyl(0.46, 0.46, 0.08, '#8fd8ff', 0, 2.0, 0.02, Math.PI / 2, 0, 0, 'gloss'); }
-            else if (th.win === 'arch') { a.box(1.1, 1.5, 0.12, 0.05, th.trim, 0, 1.85, 0.04); a.cyl(0.55, 0.55, 0.12, th.trim, 0, 2.6, 0.04, Math.PI / 2, 0, 0); a.box(0.9, 1.4, 0.06, 0.03, '#8fd8ff', 0, 1.85, 0.08, 0, 0, 0, 'gloss'); a.cyl(0.45, 0.45, 0.06, '#8fd8ff', 0, 2.55, 0.08, Math.PI / 2, 0, 0, 'gloss'); a.box(1.2, 0.1, 0.25, 0.04, th.trim, 0, 1.12, 0.1); }
-            else { a.box(1.2, 1.3, 0.12, 0.06, th.trim, 0, 2.0, 0.04); a.box(1.0, 1.1, 0.06, 0.03, def.sky === 'night' ? '#ffe9a0' : '#8fd8ff', 0, 2.0, 0.08, 0, 0, 0, def.sky === 'night' ? 'glow' : 'gloss'); a.box(0.06, 1.1, 0.08, 0.02, th.trim, 0, 2.0, 0.1); a.box(1.3, 0.1, 0.25, 0.04, th.trim, 0, 1.32, 0.1); }
+            if (th.win === 'round' || th.win === 'porthole') { a.cyl(0.6, 0.6, 0.14, th.win === 'porthole' ? '#e2e8f0' : th.trim, 0, 2.0, 0.04, Math.PI / 2, 0, 0); a.tor(0.48, 0.1, th.win === 'porthole' ? '#c9962e' : th.trim, 0, 2.0, 0.14, 0, 0, 0, 'gloss'); a.cyl(0.42, 0.42, 0.08, '#2f5f8f', 0, 2.0, 0.1, Math.PI / 2, 0, 0); a.cyl(0.38, 0.38, 0.04, '#8fd8ff', 0, 2.0, 0.13, Math.PI / 2, 0, 0, 'gloss'); a.box(0.1, 0.5, 0.02, 0.01, '#e8f8ff', -0.1, 2.05, 0.16, 0, 0, 0.6, 'glow'); for (let k = 0; k < 6; k++) a.sph(0.04, '#c9962e', Math.sin(k * 1.047) * 0.48, 2.0 + Math.cos(k * 1.047) * 0.48, 0.2, 1, 1, 1, 0, 0, 0, 'gloss'); }
+            else if (th.win === 'arch') { a.box(1.1, 1.5, 0.12, 0.05, th.trim, 0, 1.85, 0.04); a.cyl(0.55, 0.55, 0.12, th.trim, 0, 2.6, 0.04, Math.PI / 2, 0, 0); a.box(0.9, 1.4, 0.06, 0.03, '#8fd8ff', 0, 1.85, 0.08, 0, 0, 0, 'gloss'); a.cyl(0.45, 0.45, 0.06, '#8fd8ff', 0, 2.55, 0.08, Math.PI / 2, 0, 0, 'gloss'); a.box(1.3, 0.12, 0.34, 0.04, th.trim, 0, 1.1, 0.14); a.box(0.06, 1.85, 0.06, 0.02, th.trim, 0, 2.0, 0.12); a.box(0.9, 0.06, 0.06, 0.02, th.trim, 0, 2.1, 0.12); a.box(0.12, 0.9, 0.02, 0.01, '#e8f8ff', -0.22, 1.9, 0.12, 0, 0, 0.5, 'glow'); a.sph(0.14, th.trim, 0, 3.15, 0.12, 1, 1.2, 0.6, 0, 0, 0, 'gloss'); }
+            else { const night = def.sky === 'night'; a.box(1.3, 1.4, 0.2, 0.06, th.trim, 0, 2.0, 0.08); a.box(1.04, 1.14, 0.1, 0.02, night ? '#c98a2a' : '#2f5f8f', 0, 2.0, 0.14); a.box(0.96, 1.06, 0.04, 0.02, night ? '#ffe9a0' : '#8fd8ff', 0, 2.0, 0.12, 0, 0, 0, night ? 'glow' : 'gloss');
+              if (!night) { a.box(0.12, 0.9, 0.02, 0.01, '#e8f8ff', -0.2, 2.05, 0.15, 0, 0, 0.5, 'glow'); a.box(0.06, 0.5, 0.02, 0.01, '#e8f8ff', 0.02, 2.2, 0.15, 0, 0, 0.5, 'glow'); }
+              a.box(0.07, 1.06, 0.06, 0.02, th.trim, 0, 2.0, 0.17); a.box(1.0, 0.07, 0.06, 0.02, th.trim, 0, 2.05, 0.17); a.box(1.5, 0.12, 0.36, 0.04, th.trim, 0, 1.27, 0.2); a.box(1.46, 0.14, 0.26, 0.05, th.trim, 0, 2.76, 0.16);
+              if (def.id === 'hideout' || def.id === 'toys') { a.box(1.2, 0.26, 0.3, 0.06, def.id === 'toys' ? '#ef4444' : '#8a3f2a', 0, 1.1, 0.3); for (let k = 0; k < 4; k++) { a.sph(0.13, '#22a447', -0.42 + k * 0.28, 1.28, 0.3, 1, 0.8, 1); a.sph(0.07, ['#ff4f9a', '#ffd23f', '#ffffff', '#a855f7'][(k + x) % 4], -0.42 + k * 0.28, 1.38, 0.38, 1, 1, 1, 0, 0, 0, 'glow'); } } }
           }
           if (def.id === 'candy') { a.box(2.02, 0.22, 0.12, 0.05, (x + z) % 2 ? '#ffffff' : '#ff4f9a', 0, 3.0, 0.08); for (let k = 0; k < 3; k++) a.sph(0.16 + (k % 2) * 0.06, '#ffffff', -0.7 + k * 0.7, 3.42, 0.12, 1, 1.4 - (k % 2) * 0.3, 0.8); }
           if (def.id === 'ship') a.box(2.02, 0.35, 0.1, 0.03, '#ef4444', 0, 2.95, 0.06);
@@ -293,18 +296,60 @@
       for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = 150 + rnd(i, 4) * 40; scen.sph(30 + rnd(i, 5) * 20, i % 2 ? M.shift(def.ground || '#7cd36b', 0, 0, -0.05) : def.ground || '#7cd36b', cxm + Math.cos(a) * r, -12, czm + Math.sin(a) * r, 1.4, 0.55, 1.2, 0, 0, 0, null, 14, 10); }
       scen.box(W * C + 120, 0.08, 7, 0.02, '#4b5563', cxm, -0.05, H * C + 4.5); for (let k = -15; k < 15; k++) scen.box(2.4, 0.09, 0.25, 0.02, '#ffffff', cxm + k * 5, -0.0, H * C + 4.5); scen.box(W * C + 120, 0.2, 0.5, 0.05, '#d1d5db', cxm, 0.0, H * C + 0.9);
     }
-    if (def.water) { // ship bow + stern + far islands
-      const [x0, z0, x1, z1] = P.bbox; const mz = (z0 + z1 + 1) * C / 2, hz = (z1 - z0 + 1) * C; const bx = (x1 + 1) * C;
-      for (let k = 0; k < 8; k++) { const t = k / 8, w = hz * (1 - t) * 0.98; scen.box(2.2, WH + 1.2, w, 0.3, '#ffffff', bx + k * 2.0 + 1, (WH + 1.2) / 2 - 1.2, mz); scen.box(2.25, 0.5, w + 0.05, 0.1, '#1e3a8a', bx + k * 2.0 + 1, 0.2, mz); scen.box(2.25, 0.3, w + 0.05, 0.1, '#ef4444', bx + k * 2.0 + 1, 2.95, mz); }
-      scen.box(3, WH + 1.2, hz, 0.6, '#ffffff', x0 * C - 1.4, (WH + 1.2) / 2 - 1.2, mz); scen.box(3.05, 0.5, hz, 0.2, '#1e3a8a', x0 * C - 1.4, 0.2, mz);
-      [[x0 * C + 20, 0], [x0 * C + 40, 1], [x0 * C + 62, 0]].forEach(([sx, k]) => { scen.cyl(1.8, 2.0, 5, '#ffffff', sx, RH + 2.5, mz - 2); scen.cyl(1.85, 1.85, 1.2, '#ef4444', sx, RH + 4.2, mz - 2); scen.cyl(1.4, 1.4, 0.3, '#1f2937', sx, RH + 5.0, mz - 2); });
+    if (def.water) { // the ship: curved hull with bow + rounded stern, wrap-around deck with railings, lifeboats on davits, funnels; far islands
+      const [x0, z0, x1, z1] = P.bbox; const zN = z0 * C - 3, zS = (z1 + 1) * C, mz = (zN + zS) / 2, xa = x0 * C - 5, xb = (x1 + 1) * C, tip = xb + 20, WY = L.waterY;
+      const sh = new T.Shape(); const P2 = (x, z) => [x, -z]; // shape y = -world z (after rotateX(-90deg))
+      sh.moveTo(...P2(xa + 5, zN)); sh.lineTo(...P2(xb, zN)); sh.quadraticCurveTo(...P2(xb + 14, zN), ...P2(tip, mz)); sh.quadraticCurveTo(...P2(xb + 14, zS), ...P2(xb, zS)); sh.lineTo(...P2(xa + 5, zS)); sh.quadraticCurveTo(...P2(xa, zS), ...P2(xa, mz)); sh.quadraticCurveTo(...P2(xa, zN), ...P2(xa + 5, zN));
+      const slab = (y0, y1, col, inset) => { let s2 = sh; if (inset) { const pts = sh.getSpacedPoints(160); const cx = (xa + tip) / 2, cy = -mz; s2 = new T.Shape(pts.map((p) => { const dx = p.x - cx, dy = p.y - cy, l = Math.hypot(dx * 0.35, dy) || 1; return new T.Vector2(p.x - dx * 0.35 / l * inset * 0.35 * 2.0, p.y - dy / l * inset); })); }
+        const g = new T.ExtrudeGeometry(s2, { depth: y1 - y0, bevelEnabled: false, curveSegments: M.low ? 6 : 14 }); g.rotateX(-Math.PI / 2); g.translate(0, y0, 0); scen.geo(g, col, 0, 0, 0); };
+      slab(WY - 3, WY + 0.25, '#1e3a8a'); slab(WY + 0.25, WY + 0.6, '#ef4444'); slab(WY + 0.6, -0.42, '#ffffff'); slab(-0.42, -0.24, '#1e3a8a'); slab(-0.24, -0.05, '#d9a066');
+      // portholes along the visible hull sides
+      for (let x = xa + 6; x < xb + 6; x += 3.2) { scen.cyl(0.32, 0.32, 0.1, '#7dd3fc', x, (WY + 0.6 - 0.42) / 2, zS + 0.03, Math.PI / 2, 0, 0, 'glow', 14); scen.tor(0.34, 0.07, '#1e3a8a', x, (WY + 0.6 - 0.42) / 2, zS + 0.06, 0, 0, 0, 'gloss'); scen.cyl(0.32, 0.32, 0.1, '#7dd3fc', x, (WY + 0.6 - 0.42) / 2, zN - 0.03, Math.PI / 2, 0, 0, 'glow', 14); }
+      // railings along the deck edge (not on the dock side, where the gangway is)
+      const pts = sh.getSpacedPoints(M.low ? 90 : 180).map((p) => [p.x, -p.y]); let prev = null;
+      pts.forEach(([x, z], i) => { const keep = z < zS - 0.6; if (keep && i % 2 === 0) scen.cyl(0.05, 0.05, 1.0, '#ffffff', x, 0.45, z, 0, 0, 0, 'gloss', 6); if (keep && prev) { const dx = x - prev[0], dz = z - prev[1], l = Math.hypot(dx, dz), ry = Math.atan2(-dz, dx); scen.box(l + 0.06, 0.09, 0.09, 0.03, '#ffffff', (x + prev[0]) / 2, 0.95, (z + prev[1]) / 2, 0, ry, 0, 'gloss'); scen.box(l + 0.06, 0.05, 0.05, 0.02, '#cbd5e1', (x + prev[0]) / 2, 0.5, (z + prev[1]) / 2, 0, ry, 0); } prev = keep ? [x, z] : null; });
+      // foredeck: anchor winch, mast with flags, bollards; stern: flag + lifebuoys
+      scen.cyl(0.8, 0.8, 0.7, '#64748b', xb + 6, 0.35, mz, Math.PI / 2, 0, 0); scen.cyl(0.95, 0.95, 0.12, '#1e3a8a', xb + 6, 0.35, mz - 0.6, Math.PI / 2, 0, 0); scen.cyl(0.95, 0.95, 0.12, '#1e3a8a', xb + 6, 0.35, mz + 0.6, Math.PI / 2, 0, 0);
+      scen.cyl(0.12, 0.16, 9, '#ffffff', xb + 11, 4.5, mz); for (let k = 0; k < 9; k++) { const t = k / 8; scen.cone(0.35, 0.6, ['#ef4444', '#facc15', '#22c55e', '#3b82f6', '#ff4fd8'][k % 5], xb + 11 - t * 10.5, 8.6 - t * (8.6 - RH - 0.6) - Math.sin(t * Math.PI) * 0.8, mz, Math.PI, 0, 0, 'glow', 3); }
+      [[xb + 3, zN + 1.2], [xb + 3, zS - 1.2], [xb + 9, mz - 2.5], [xb + 9, mz + 2.5]].forEach(([x, z]) => { scen.cyl(0.25, 0.3, 0.5, '#1f2937', x, 0.25, z); scen.cyl(0.35, 0.35, 0.08, '#1f2937', x, 0.52, z); });
+      scen.cyl(0.06, 0.06, 4, '#ffffff', xa + 0.8, 2, mz); scen.box(1.8, 1.1, 0.05, 0.02, '#1e3a8a', xa + 0.8 - 0.95, 3.4, mz); scen.box(0.6, 0.4, 0.06, 0.02, '#ef4444', xa + 0.8 - 1.4, 3.65, mz);
+      // lifeboats hanging on davits along both long sides of the upper storey
+      const boat = (x, z, side) => { const y = WH + 0.9, o = side * 1.25; const bz = z + o; scen.sph(1.0, '#ff7a1a', x, y, bz, 1.9, 0.55, 0.62, 0, 0, 0, 'gloss'); scen.box(3.2, 0.12, 1.1, 0.05, '#ffffff', x, y + 0.08, bz); scen.sph(0.9, '#ffffff', x, y + 0.18, bz, 1.7, 0.42, 0.55); scen.box(3.4, 0.08, 0.08, 0.02, '#1e3a8a', x, y - 0.1, bz + side * 0.6);
+        [-1.3, 1.3].forEach((dx) => { scen.cyl(0.07, 0.07, 1.6, '#e5e7eb', x + dx, y + 0.9, z + side * 0.3, side * 0.6, 0, 0); scen.cyl(0.07, 0.07, 1.4, '#e5e7eb', x + dx, y + 1.45, z + side * 0.85, Math.PI / 2, 0, 0); scen.cyl(0.015, 0.015, 1.1, '#334155', x + dx, y + 0.9, bz); }); };
+      const signX = P.start ? wx(P.start.x) : -99; for (let x = x0 * C + 6; x < xb - 4; x += 9) { if (Math.abs(x - signX) > 6.5) boat(x, zS, 1); boat(x, z0 * C, -1); }
+      // funnels: tapered, striped, black caps, a puff of steam
+      [[x0 * C + 24, 0], [x0 * C + 44, 1]].forEach(([sx]) => { const fz = mz + 4; scen.cyl(1.7, 2.1, 5, '#ffffff', sx, RH + 2.5, fz, 0, 0, -0.12, null, 22); scen.cyl(1.68, 1.82, 1.1, '#ef4444', sx - 0.36, RH + 3.9, fz, 0, 0, -0.12, null, 22); scen.cyl(1.6, 1.66, 0.45, '#1f2937', sx - 0.6, RH + 5.05, fz, 0, 0, -0.12, null, 22); scen.cyl(2.3, 2.3, 0.3, '#1e3a8a', sx + 0.05, RH + 0.15, fz, 0, 0, 0, null, 22); });
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.4, r = 160 + rnd(i, 2) * 50; scen.sph(18 + rnd(i, 3) * 10, '#f2d27a', cxm + Math.cos(a) * r, -6, czm + Math.sin(a) * r, 1.3, 0.4, 1.1); PR.F.palm(PR.at(scen, cxm + Math.cos(a) * r, czm + Math.sin(a) * r, 0), i); }
+      L.funnels = [[x0 * C + 24, mz + 4], [x0 * C + 44, mz + 4]];
     }
     if (def.clouds) { const [x0, z0, x1, z1] = P.bbox; const rb = PR.at(scen, cxm, czm - H * C * 0.6 - 25, 0); ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7'].forEach((c, k) => rb.tor(60 - k * 2.5, 1.2, c, 0, -5, 0, 0, 0, 0, 'glow', Math.PI)); }
     const scm = scen.group(false); scene.add(scm);
 
     /* ---------- roofs ---------- */
     const roofCol = th.roof;
+    // rooftop props are solid (P.roofBlock) - but only when that never cuts a skylight or a grapple landing off from the rest of the roof
+    P.roofBlock = P.roofCell.map((r) => r.map(() => false));
+    const rNeed = []; P.sky.forEach((q) => rNeed.push([q.x, q.z])); P.roofPts.forEach((q) => DIRS.forEach(([dx, dz]) => { [1, 2].forEach((k) => { const x = q.x + dx * k, z = q.z + dz * k; if (LG.inside(P, x, z) && P.roofCell[z][x]) rNeed.push([x, z]); }); }));
+    const rComp = () => { const comp = new Int32Array(W * H).fill(-1); let id = 0; const pass = (x, z) => P.roofCell[z][x] && !P.roofBlock[z][x];
+      return rNeed.map(([x, z]) => { if (!pass(x, z)) return -2; if (comp[z * W + x] < 0) { const seen = LG.bfs(P, x, z, pass); for (let i = 0; i < seen.length; i++) if (seen[i]) comp[i] = id; id++; } return comp[z * W + x]; }); };
+    const rBase = rComp();
+    const roofBlock = (cells) => { cells = cells.filter(([x, z]) => LG.inside(P, x, z) && P.roofCell[z][x] && !P.roofBlock[z][x]); if (cells.some(([x, z]) => rNeed.some((q) => q[0] === x && q[1] === z))) return false; cells.forEach(([x, z]) => { P.roofBlock[z][x] = true; });
+      const now = rComp(); let ok = now.every((c) => c !== -2); for (let i = 0; ok && i < rNeed.length; i++) for (let j = i + 1; j < rNeed.length; j++) if (rBase[i] === rBase[j] && now[i] !== now[j]) { ok = false; break; }
+      if (!ok) cells.forEach(([x, z]) => { P.roofBlock[z][x] = false; }); return ok; };
+    const roofWater = [];
+    (L.funnels || []).forEach(([fx, fz]) => { const cs = []; for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) if (Math.hypot(wx(x) - fx, wx(z) - fz) < 2.6) cs.push([x, z]); roofBlock(cs); });
+    if (def.id === 'ship') { // sun deck pool on the biggest roofed room, ringed with loungers + umbrellas
+      const rr = P.rooms.filter((r) => !r.open).sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0))[0];
+      if (rr) { const cx = Math.floor((rr.x0 + rr.x1) / 2), cz = Math.floor((rr.z0 + rr.z1) / 2), px0 = cx - 3, px1 = cx + 2, pz0 = cz - 1, pz1 = cz + 1; const cells = []; for (let z = pz0; z <= pz1; z++) for (let x = px0; x <= px1; x++) cells.push([x, z]);
+        if (roofBlock(cells)) { const X0 = px0 * C + 0.1, X1 = (px1 + 1) * C - 0.1, Z0 = pz0 * C + 0.1, Z1 = (pz1 + 1) * C - 0.1, mx = (X0 + X1) / 2, mzp = (Z0 + Z1) / 2, w = X1 - X0, d = Z1 - Z0;
+          Rf.box(w, 0.1, d, 0.03, '#38bdf8', mx, RH + 0.05, mzp); Rf.box(w, 0.6, 0.3, 0.1, '#ffffff', mx, RH + 0.3, Z0); Rf.box(w, 0.6, 0.3, 0.1, '#ffffff', mx, RH + 0.3, Z1); Rf.box(0.3, 0.6, d, 0.1, '#ffffff', X0, RH + 0.3, mzp); Rf.box(0.3, 0.6, d, 0.1, '#ffffff', X1, RH + 0.3, mzp);
+          for (let k = 0; k < 5; k++) Rf.box(w - 0.3, 0.06, 0.12, 0.02, k % 2 ? '#0ea5e9' : '#7dd3fc', mx, RH + 0.12, Z0 + 0.6 + k * (d - 1.2) / 4);
+          [[X1 - 0.5, -1], [X0 + 0.5, 1]].forEach(([lx]) => { [-0.3, 0.3].forEach((o) => Rf.tor(0.28, 0.04, '#e5e7eb', lx + o, RH + 0.62, Z0 - 0.05, 0, 0, 0, 'gloss', Math.PI)); });
+          Rf.cyl(0.25, 0.25, 0.08, '#ffffff', X1 - 1.2, RH + 0.66, Z1 + 0.05); PR.F.lifebuoy(PR.at(Rf, X0 + 1.4, Z1 + 0.25, 0)); // (lifebuoy ring hangs on the rim)
+          const wm = new T.Mesh(new T.BoxGeometry(w - 0.3, 0.06, d - 0.3), M.MAT.water); wm.position.set(mx, RH + 0.48, mzp); roofWater.push(wm);
+          const lounge = [[px0 - 1, pz1 + 2, 0], [px0 + 1, pz1 + 2, 0], [px0 + 3, pz1 + 2, 0], [px1 + 2, pz0, Math.PI / 2], [px1 + 2, pz1, Math.PI / 2]];
+          lounge.forEach(([x, z, ry], i) => { if (!roofBlock([[x, z]])) return; PR.F.deckChair(PR.at(Rf, wx(x), wx(z), ry), i); });
+          [[px0 - 1, pz0 - 2], [px1 + 1, pz0 - 2], [px0 + 2, pz1 + 3]].forEach(([x, z], i) => { if (!roofBlock([[x, z]])) return; const a = PR.at(Rf, wx(x), wx(z), 0); PR.F.umbrella(a, i + 2); }); } } }
     // upper storey: facade wall between the rooms' wall tops and the walkable roof, with windows + cornices (hidden with the roof when you are inside)
     const UPH = RH - 0.5 - WH, winC = def.sky === 'night' ? '#ffe9a8' : '#bfe6ff';
     function upper(X, Z, dx, dz, x, z) {
@@ -315,32 +360,35 @@
       else { Rf.box(len, 0.26, 0.46, 0.08, th.trim, X, WH + 0.1, ez + dz * 0.05); Rf.box(len, 0.3, 0.5, 0.1, th.base, X, RH - 0.45, ez + dz * 0.06); }
       // window on the outer face
       const ox = ex + dx * 0.17, oz = ez + dz * 0.17, wy = WH + UPH / 2 + 0.05, rx = dz ? Math.PI / 2 : 0, rz = dx ? Math.PI / 2 : 0;
-      if (th.win === 'round' || th.win === 'porthole') { Rf.cyl(0.5, 0.5, 0.08, winC, ox, wy, oz, rx, 0, rz, 'glow', 18); Rf.tor(0.52, 0.09, th.trim, ox + dx * 0.02, wy, oz + dz * 0.02, dz ? 0 : 0, dx ? Math.PI / 2 : 0, 0, 'gloss'); }
-      else if (th.win === 'arch') { if (dx) { Rf.box(0.08, 0.9, 0.9, 0.05, winC, ox, wy - 0.15, Z, 0, 0, 0, 'glow'); Rf.cyl(0.45, 0.45, 0.08, winC, ox, wy + 0.3, Z, 0, 0, Math.PI / 2, 'glow', 16); Rf.box(0.12, 0.12, 1.1, 0.04, th.trim, ox + dx * 0.02, wy - 0.62, Z); } else { Rf.box(0.9, 0.9, 0.08, 0.05, winC, X, wy - 0.15, oz, 0, 0, 0, 'glow'); Rf.cyl(0.45, 0.45, 0.08, winC, X, wy + 0.3, oz, Math.PI / 2, 0, 0, 'glow', 16); Rf.box(1.1, 0.12, 0.12, 0.04, th.trim, X, wy - 0.62, oz + dz * 0.02); } }
-      else { if (dx) { Rf.box(0.08, 1.0, 1.1, 0.05, winC, ox, wy, Z, 0, 0, 0, 'glow'); Rf.box(0.12, 1.2, 0.1, 0.03, th.trim, ox + dx * 0.02, wy, Z); Rf.box(0.12, 0.1, 1.3, 0.03, th.trim, ox + dx * 0.02, wy, Z); } else { Rf.box(1.1, 1.0, 0.08, 0.05, winC, X, wy, oz, 0, 0, 0, 'glow'); Rf.box(0.1, 1.2, 0.12, 0.03, th.trim, X, wy, oz + dz * 0.02); Rf.box(1.3, 0.1, 0.12, 0.03, th.trim, X, wy, oz + dz * 0.02); } }
+      const w = PR.at(Rf, ex + dx * 0.16, ez + dz * 0.16, Math.atan2(dx, dz)), glass = def.sky === 'night' ? '#ffe9a8' : '#8fd8ff', deep = def.sky === 'night' ? '#c98a2a' : '#2f5f8f';
+      if (th.win === 'round' || th.win === 'porthole') { w.cyl(0.62, 0.62, 0.1, th.win === 'porthole' ? '#e2e8f0' : th.trim, 0, wy, 0.0, Math.PI / 2, 0, 0); w.tor(0.52, 0.09, th.win === 'porthole' ? '#c9962e' : th.trim, 0, wy, 0.1, 0, 0, 0, 'gloss'); w.cyl(0.44, 0.44, 0.06, deep, 0, wy, 0.06, Math.PI / 2, 0, 0); w.cyl(0.4, 0.4, 0.04, glass, 0, wy, 0.09, Math.PI / 2, 0, 0, def.sky === 'night' ? 'glow' : 'gloss'); w.box(0.1, 0.5, 0.02, 0.01, '#e8f8ff', -0.1, wy + 0.05, 0.12, 0, 0, 0.6, 'glow'); }
+      else if (th.win === 'arch') { w.box(1.1, 1.3, 0.1, 0.04, th.trim, 0, wy - 0.1, 0.02); w.cyl(0.55, 0.55, 0.1, th.trim, 0, wy + 0.55, 0.02, Math.PI / 2, 0, 0); w.box(0.9, 1.2, 0.06, 0.02, glass, 0, wy - 0.1, 0.06, 0, 0, 0, 'gloss'); w.cyl(0.45, 0.45, 0.06, glass, 0, wy + 0.5, 0.06, Math.PI / 2, 0, 0, 'gloss'); w.box(0.06, 1.6, 0.06, 0.02, th.trim, 0, wy + 0.1, 0.1); w.box(1.3, 0.12, 0.3, 0.04, th.trim, 0, wy - 0.78, 0.12); w.box(0.12, 0.8, 0.02, 0.01, '#e8f8ff', -0.22, wy, 0.1, 0, 0, 0.5, 'glow'); }
+      else { w.box(1.3, 1.3, 0.16, 0.05, th.trim, 0, wy, 0.04); w.box(1.04, 1.04, 0.06, 0.02, deep, 0, wy, 0.1); w.box(0.96, 0.96, 0.04, 0.02, glass, 0, wy, 0.09, 0, 0, 0, def.sky === 'night' ? 'glow' : 'gloss'); w.box(0.07, 0.96, 0.05, 0.02, th.trim, 0, wy, 0.13); w.box(0.96, 0.07, 0.05, 0.02, th.trim, 0, wy, 0.13); w.box(1.5, 0.12, 0.34, 0.04, th.trim, 0, wy - 0.72, 0.15); if (def.sky !== 'night') w.box(0.12, 0.8, 0.02, 0.01, '#e8f8ff', -0.2, wy + 0.05, 0.13, 0, 0, 0.5, 'glow'); }
     }
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!P.roofCell[z][x]) continue; const X = wx(x), Z = wx(z); const sky = P.sky.some((s) => s.x === x && s.z === z); if (sky) continue;
       const rmo = roomOf(x, z), ri = rmo ? rmo.i : 0, rc = M.shift(roofCol, ((ri * 7) % 5 - 2) * 0.012, 0, ((ri * 3) % 5 - 2) * 0.03);
       Rf.geo(new T.BoxGeometry(2.0, 0.5, 2.0), (x + z) % 2 ? rc : M.shift(rc, 0, 0, -0.025), X, RH - 0.25, Z);
+      if (def.id === 'ship') for (let k = 0; k < 2; k++) Rf.geo(new T.BoxGeometry(2.0, 0.02, 0.09), M.shift(rc, 0, 0, -0.07), X, RH + 0.005, Z - 0.5 + k * 1.0);
       [[1, 0], [0, 1]].forEach(([dx, dz]) => { if (!LG.inside(P, x + dx, z + dz) || !P.roofCell[z + dz][x + dx]) return; const o = roomOf(x + dx, z + dz); if (!o || !rmo || o.i === rmo.i) return; if (dx) Rf.box(0.3, 0.3, 2.05, 0.1, th.trim, X + 1, RH + 0.1, Z); else Rf.box(2.05, 0.3, 0.3, 0.1, th.trim, X, RH + 0.1, Z + 1); });
       DIRS.forEach(([dx, dz]) => { if (LG.inside(P, x + dx, z + dz) && P.roofCell[z + dz][x + dx]) return; upper(X, Z, dx, dz, x, z); if (dx) Rf.box(0.3, 0.45, 2.0, 0.1, th.trim, X + dx * 0.9, RH + 0.2, Z); else Rf.box(2.0, 0.45, 0.3, 0.1, th.trim, X, RH + 0.2, Z + dz * 0.9);
         if (def.id === 'castle' && (x + z) % 2 === 0) { if (dx) Rf.box(0.4, 0.7, 0.9, 0.1, '#ece6ff', X + dx * 0.9, RH + 0.75, Z); else Rf.box(0.9, 0.7, 0.4, 0.1, '#ece6ff', X, RH + 0.75, Z + dz * 0.9); }
         if (def.id === 'candy') Rf.sph(0.3, '#ffffff', X + dx * 0.95, RH - 0.1, Z + dz * 0.95, 1, 1.6, 1); });
       const rr = rnd(x * 3, z * 5); const nearSky = P.sky.some((s) => Math.abs(s.x - x) <= 1 && Math.abs(s.z - z) <= 1) || P.roofPts.some((p) => Math.abs(p.x - x) <= 1 && Math.abs(p.z - z) <= 1);
-      if (!nearSky && rr < 0.025) { const a = PR.at(Rf, X, Z, rr * 60); if (def.id === 'candy') PR.F.lollipop(a, x + z); else if (def.id === 'castle') a.cone(0.6, 1.2, '#ffd23f', 0, RH + 1.0, 0, 0, 0, 0, 'gloss'); else if (def.id === 'toys') a.box(1.2, 1.2, 1.2, 0.2, ['#ef4444', '#22c55e', '#3b82f6'][(x + z) % 3], 0, RH + 0.6, 0, 0, rr * 9, 0, 'gloss'); else { a.box(1.4, 0.9, 1.0, 0.15, '#cbd5e1', 0, RH + 0.45, 0); a.cyl(0.35, 0.35, 0.1, '#64748b', 0, RH + 0.92, 0); } }
+      if (!nearSky && rr < 0.025 && roofBlock([[x, z]])) { const a = PR.at(Rf, X, Z, rr * 60); if (def.id === 'ship') { if ((x + z) % 2) PR.F.deckChair(a, x); else PR.F.umbrella(a, z); } else if (def.id === 'candy') PR.F.lollipop(a, x + z); else if (def.id === 'castle') a.cone(0.6, 1.2, '#ffd23f', 0, RH + 1.0, 0, 0, 0, 0, 'gloss'); else if (def.id === 'toys') a.box(1.2, 1.2, 1.2, 0.2, ['#ef4444', '#22c55e', '#3b82f6'][(x + z) % 3], 0, RH + 0.6, 0, 0, rr * 9, 0, 'gloss'); else { a.box(1.4, 0.9, 1.0, 0.15, '#cbd5e1', 0, RH + 0.45, 0); a.cyl(0.35, 0.35, 0.1, '#64748b', 0, RH + 0.92, 0); } }
     }
-    if (def.id === 'castle') { const [x0, z0, x1, z1] = P.bbox; [[x0, z0 + 4], [x1, z0 + 4], [x0, z1], [x1, z1], [16, 1], [28, 1]].forEach(([x, z]) => { const X = wx(x), Z = wx(z); Rf.cyl(1.6, 1.8, 10.5, '#ece6ff', X, 5.25, Z, 0, 0, 0, null, 18); Rf.tor(1.7, 0.18, '#ffd23f', X, 10.4, Z, Math.PI / 2, 0, 0, 'gloss'); Rf.cone(2.2, 3.4, '#a593ff', X, 12.2, Z, 0, 0, 0, null, 18); Rf.cyl(0.04, 0.04, 1.6, '#64748b', X, 14.6, Z); Rf.box(0.9, 0.5, 0.04, 0.02, '#ff4fd8', X + 0.45, 15.1, Z); for (let k = 0; k < 3; k++) Rf.cap(0.18, 0.4, '#5b4b8a', X + Math.sin(k * 2.1 + 0.5) * 1.62, 8 + k * 0.3, Z + Math.cos(k * 2.1 + 0.5) * 1.62, 0, k * 2.1 + 0.5, 0); }); }
-    if (def.id === 'candy') { [[8, 8], [8, 20], [33, 19]].forEach(([x, z], i) => { Rf.cyl(0.9, 1.1, 5, '#ffffff', wx(x), RH + 2.5, wx(z)); for (let k = 0; k < 3; k++) Rf.tor(0.95, 0.15, '#ff4f9a', wx(x), RH + 1 + k * 1.5, wx(z), Math.PI / 2, 0, 0, 'gloss'); }); }
-    if (def.id === 'museum') { const fz = wx(30) + 1.4, fx = wx(21) + 1; const a = PR.at(Rf, fx, fz, 0); a.cone(9, 2.2, '#f2e9da', 0, WH + 1.5, 0.6, 0, Math.PI / 4, 0, null, 4); for (let k = -2; k <= 2; k++) if (k) { PR.F.column(PR.at(S, fx + k * 2.4, fz + 1.4, 0)); } a.box(16, 0.4, 3.5, 0.1, '#e8e0d0', 0, WH + 0.2, 0.8); }
-    if (def.id === 'toys') { const a = PR.at(Rf, wx(20), wx(28) - 0.3, 0); ['#ef4444', '#22c55e', '#3b82f6', '#ffd23f'].forEach((c, k) => { a.box(1.6, 1.6, 1.6, 0.3, c, -3.6 + k * 2.4, RH + 1.0, 0, 0, (k - 1.5) * 0.15, 0, 'gloss'); a.sph(0.4, '#ffffff', -3.6 + k * 2.4, RH + 1.0, 0.82, 1, 1, 0.3, 'glow'); }); PR.F.teddy && 0; }
-    if (def.id === 'hideout') { const a = PR.at(Rf, wx(26), wx(6), 0); a.cyl(0.08, 0.08, 1.4, '#94a3b8', 0, RH + 0.7, 0); a.sph(0.9, '#e5e7eb', 0, RH + 1.6, 0.3, 1, 1, 0.35, 'gloss'); a.box(1.0, 2.2, 1.0, 0.1, '#8a3f2a', -12, RH + 1.1, 2); }
+    if (def.id === 'castle') { const [x0, z0, x1, z1] = P.bbox; [[x0, z0 + 4], [x1, z0 + 4], [x0, z1], [x1, z1], [16, 1], [28, 1]].forEach(([x, z]) => { roofBlock([[x, z]]); const X = wx(x), Z = wx(z); Rf.cyl(1.6, 1.8, 10.5, '#ece6ff', X, 5.25, Z, 0, 0, 0, null, 18); Rf.tor(1.7, 0.18, '#ffd23f', X, 10.4, Z, Math.PI / 2, 0, 0, 'gloss'); Rf.cone(2.2, 3.4, '#a593ff', X, 12.2, Z, 0, 0, 0, null, 18); Rf.cyl(0.04, 0.04, 1.6, '#64748b', X, 14.6, Z); Rf.box(0.9, 0.5, 0.04, 0.02, '#ff4fd8', X + 0.45, 15.1, Z); for (let k = 0; k < 3; k++) Rf.cap(0.18, 0.4, '#5b4b8a', X + Math.sin(k * 2.1 + 0.5) * 1.62, 8 + k * 0.3, Z + Math.cos(k * 2.1 + 0.5) * 1.62, 0, k * 2.1 + 0.5, 0); }); }
+    if (def.id === 'candy') { [[8, 8], [8, 20], [33, 19]].forEach(([x, z], i) => { if (!roofBlock([[x, z]])) return; Rf.cyl(0.9, 1.1, 5, '#ffffff', wx(x), RH + 2.5, wx(z)); for (let k = 0; k < 3; k++) Rf.tor(0.95, 0.15, '#ff4f9a', wx(x), RH + 1 + k * 1.5, wx(z), Math.PI / 2, 0, 0, 'gloss'); }); }
+    if (def.id === 'museum') { const fz = wx(30) + 1.4, fx = wx(21) + 1; const a = PR.at(Rf, fx, fz, 0); { const tri = (w, h, d, col, y, z) => { const sh = new T.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(0, h); sh.lineTo(-w / 2, 0); const g = new T.ExtrudeGeometry(sh, { depth: d, bevelEnabled: false }); g.translate(0, 0, -d / 2); a.geo(g, col, 0, y, z); };
+        tri(17.2, 2.6, 3.9, '#d6c39c', WH + 0.4, 0.8); tri(16.4, 2.25, 3.95, '#f2e9da', WH + 0.52, 0.86); tri(13.2, 1.6, 0.1, '#c9b48a', WH + 0.75, 2.84); a.cyl(0.55, 0.55, 0.14, '#ffd23f', 0, WH + 1.3, 2.9, Math.PI / 2, 0, 0, 'gloss', 20); a.sph(0.3, '#7dd3fc', 0, WH + 1.3, 2.98, 1, 1, 0.4, 0, 0, 0, 'glow'); a.box(16.6, 0.25, 3.9, 0.06, '#d6c39c', 0, WH + 0.42, 0.8); } for (let k = -2; k <= 2; k++) if (k) { PR.F.column(PR.at(S, fx + k * 2.4, fz + 1.4, 0)); } a.box(16, 0.4, 3.5, 0.1, '#e8e0d0', 0, WH + 0.2, 0.8); }
+    if (def.id === 'toys') { roofBlock([[18, 28], [19, 28], [20, 28], [21, 28]]); const a = PR.at(Rf, wx(20), wx(28) - 0.3, 0); ['#ef4444', '#22c55e', '#3b82f6', '#ffd23f'].forEach((c, k) => { a.box(1.6, 1.6, 1.6, 0.3, c, -3.6 + k * 2.4, RH + 1.0, 0, 0, (k - 1.5) * 0.15, 0, 'gloss'); a.sph(0.4, '#ffffff', -3.6 + k * 2.4, RH + 1.0, 0.82, 1, 1, 0.3, 'glow'); }); PR.F.teddy && 0; }
+    if (def.id === 'hideout') { roofBlock([[26, 6], [20, 7]]); const a = PR.at(Rf, wx(26), wx(6), 0); a.cyl(0.08, 0.08, 1.4, '#94a3b8', 0, RH + 0.7, 0); a.sph(0.9, '#e5e7eb', 0, RH + 1.6, 0.3, 1, 1, 0.35, 'gloss'); a.box(1.0, 2.2, 1.0, 0.1, '#8a3f2a', -12, RH + 1.1, 2); }
     // one big rooftop feature per room (gives every roof some character)
     const ROOFP = { candy: ['cupcake', 'gumballMachine', 'lollipop', 'gumdrop', 'candyCane'], museum: ['pyramid', 'planet', 'fountain', 'column'], ship: ['umbrella', 'deckChair', 'lifebuoy', 'palm', 'barrel'], castle: ['cloudBush', 'rainbowArch', 'cloudPuff', 'horse'], toys: ['rocket', 'dino', 'gifts', 'plushPile', 'ballBin'], hideout: ['umbrella', 'plant', 'cooler'] }[def.id] || [];
     const roofProps = [];
     P.rooms.forEach((r, i) => { if (!ROOFP.length) return; const cx = Math.floor((r.x0 + r.x1) / 2), cz = Math.floor((r.z0 + r.z1) / 2); if (!P.roofCell[cz] || !P.roofCell[cz][cx]) return; if ((r.x1 - r.x0) < 3 || (r.z1 - r.z0) < 3) return;
       if (P.sky.some((q) => Math.abs(q.x - cx) <= 2 && Math.abs(q.z - cz) <= 2) || P.roofPts.some((q) => Math.abs(q.x - cx) <= 2 && Math.abs(q.z - cz) <= 2)) return;
-      const k = ROOFP[i % ROOFP.length]; if (!PR.F[k]) return; const pb = new M.B(); try { PR.F[k](PR.at(pb, 0, 0, (i * 1.3) % 6.28), i); } catch (e) { return; } const g = pb.group(true); const sc = def.id === 'castle' ? 1.6 : 1.5; g.scale.setScalar(sc); g.position.set(wx(cx), RH, wx(cz)); roofProps.push(g); });
-    const roofG = Rf.group(true); L.roof = new T.Group(); roofProps.forEach((g) => L.roof.add(g)); L.roof.add(roofG); L.dyn.sky.forEach((m) => L.roof.add(m)); scene.add(L.roof);
+      const k = ROOFP[i % ROOFP.length]; if (!PR.F[k]) return; if (P.roofBlock[cz][cx] || !roofBlock([[cx, cz]])) return; const pb = new M.B(); try { PR.F[k](PR.at(pb, 0, 0, (i * 1.3) % 6.28), i); } catch (e) { return; } const g = pb.group(true); const sc = def.id === 'castle' ? 1.6 : 1.5; g.scale.setScalar(sc); g.position.set(wx(cx), RH, wx(cz)); roofProps.push(g); });
+    const roofG = Rf.group(true); L.roof = new T.Group(); roofProps.forEach((g) => L.roof.add(g)); roofWater.forEach((m) => L.roof.add(m)); L.roof.add(roofG); L.dyn.sky.forEach((m) => L.roof.add(m)); scene.add(L.roof);
     if (P.start && !def.hub || def.hub) { // big name sign over the entrance
       const [x0, z0, x1, z1] = P.bbox, st = P.start; let sx, sz, ry;
       if (st.z > z1) { sx = wx(st.x); sz = (z1 + 1) * C + 0.25; ry = 0; } else if (st.z < z0) { sx = wx(st.x); sz = z0 * C - 0.25; ry = Math.PI; } else if (st.x > x1) { sx = (x1 + 1) * C + 0.25; sz = wx(st.z); ry = Math.PI / 2; } else { sx = x0 * C - 0.25; sz = wx(st.z); ry = -Math.PI / 2; }
@@ -353,8 +401,16 @@
       const fb = new M.B(); fb.box(9.5, 2.4, 0.26, 0.1, th.base, 0, 0, 0, 0, 0, 0, 'gloss'); [-1, 1].forEach((k) => fb.sph(0.22, '#ffd23f', k * 4.75, 1.2, 0.15, 1, 1, 1, 0, 0, 0, 'glow')); fb.meshes(true).forEach((m) => g.add(m)); L.roof.add(g); L.sign = g; }
 
 
+    /* ---------- room lids: rooms you are not near get a ceiling cap (so the building never looks like open-top boxes) ---------- */
+    L.lids = [];
+    P.rooms.forEach((r) => { if (r.open) return; const x0 = (r.x0 + 0.5) * C, x1 = (r.x1 + 0.5) * C, z0 = (r.z0 + 0.5) * C, z1 = (r.z1 + 0.5) * C, w = x1 - x0, d = z1 - z0; if (w < 2 || d < 2) return;
+      const lb = new M.B(), col = M.shift(th.roof, ((r.i * 7) % 5 - 2) * 0.012, 0, ((r.i * 3) % 5 - 2) * 0.03 - 0.02), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, y = WH + 0.3;
+      lb.box(w, 0.2, d, 0.06, col, cx, y, cz); lb.box(w + 0.3, 0.12, 0.34, 0.05, th.trim, cx, y + 0.1, z0); lb.box(w + 0.3, 0.12, 0.34, 0.05, th.trim, cx, y + 0.1, z1); lb.box(0.34, 0.12, d + 0.3, 0.05, th.trim, x0, y + 0.1, cz); lb.box(0.34, 0.12, d + 0.3, 0.05, th.trim, x1, y + 0.1, cz);
+      for (let gx = x0 + 3; gx < x1 - 1.5; gx += 4) for (let gz = z0 + 3; gz < z1 - 1.5; gz += 4) lb.box(1.2, 0.08, 1.2, 0.04, M.shift(col, 0, 0, 0.05), gx, y + 0.12, gz);
+      const g = lb.group(false); g.visible = false; scene.add(g); L.lids.push({ m: g, x0, x1, z0, z1 }); });
+
     /* ---------- getaway vehicle ---------- */
-    if (P.exit) { const v = M.vehicle(def.vehicle || 'van'); v.position.set(wx(P.exit.x), def.water ? -0.6 : 0, wx(P.exit.z)); v.rotation.y = def.water ? Math.PI / 2 : -Math.PI / 2; scene.add(v); L.dyn.vehicle = v; }
+    if (P.exit) { const v = M.vehicle(def.vehicle || 'van'); v.position.set(wx(P.exit.x), def.water ? L.waterY - 0.05 : 0, wx(P.exit.z)); v.rotation.y = def.water ? Math.PI / 2 : -Math.PI / 2; scene.add(v); L.dyn.vehicle = v; }
 
     /* ---------- assemble static ---------- */
     const sg = S.group(true); sg.children.forEach((m) => { m.receiveShadow = true; }); scene.add(sg);

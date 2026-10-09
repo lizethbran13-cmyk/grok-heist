@@ -60,6 +60,7 @@
     // guards
     AI.guards.forEach((gu) => {
       gu.slipImm = Math.max(0, gu.slipImm - dt); gu.anim += dt;
+      if (gu.st === 'grab') { gu.spd = 0; gu.t -= dt; if (gu.t <= 0) { gu.st = 'return'; gu.slipImm = 1; backToPatrol(gu); } return; }
       if (gu.st === 'stun') { gu.t -= dt; gu.yaw += dt * 9 * Math.max(0, gu.t - 3); gu.spd = 0; if (gu.t <= 0) { gu.st = 'return'; gu.slipImm = 3; backToPatrol(gu); } return; }
       // banana slip
       for (const q of AI.gad) if (q.k === 'banana' && !q.used && gu.slipImm <= 0 && gu.st !== 'sleep' && Math.hypot(q.x - gu.x, q.z - gu.z) < 0.9) { q.used = true; q.t = 0; gu.st = 'stun'; gu.t = 4.5; gu.meter = {}; G.fx('slip', gu.x, gu.z); G.pop(gu.x, 2.6, gu.z, 'WHOA! 🍌'); return; }
@@ -76,7 +77,7 @@
         if (vis) { gu.last = [p.x, p.z]; gu.lostT = 0; } else gu.lostT += dt;
         if (gu.lostT > 2.6 || !p) { gu.st = 'search'; gu.t = 4; goTo(gu, gu.last[0], gu.last[1]); gu.meter = {}; }
         else { gu.rT -= dt; if (gu.rT <= 0 || !gu.route) { gu.rT = 0.35; goTo(gu, gu.last[0], gu.last[1]); } follow(gu, 4.3 * spdMul, dt);
-          if (p && Math.hypot(p.x - gu.x, p.z - gu.z) < 1.05) { G.catchPlayer(p.pid, gu); gu.st = 'return'; gu.meter = {}; gu.t = 1.5; backToPatrol(gu); } }
+          if (p && Math.hypot(p.x - gu.x, p.z - gu.z) < 1.05) { gu.yaw = Math.atan2(p.x - gu.x, p.z - gu.z); G.catchPlayer(p.pid, gu); gu.st = 'grab'; gu.meter = {}; gu.t = G.GRAB_T; gu.spd = 0; gu.route = null; } }
       } else if (gu.st === 'sus') { gu.spd = 0; gu.t -= dt; if (gu.last) gu.yaw = U.lerpAng(gu.yaw, Math.atan2(gu.last[0] - gu.x, gu.last[1] - gu.z), Math.min(1, dt * 4)); if (gu.t <= 0 && top < 0.35) { investigate(gu, gu.last[0], gu.last[1], 3); } }
       else if (gu.st === 'investigate' || gu.st === 'search') { const decoy = gu.decoy && AI.gad.find((q) => q === gu.decoy && q.t > 0); if (decoy) { gu.inv = [decoy.x, decoy.z]; gu.rT -= dt; if (gu.rT <= 0) { gu.rT = 0.5; goTo(gu, decoy.x, decoy.z); } }
         const arrived = follow(gu, (gu.st === 'search' ? 3.2 : 2.9) * spdMul, dt); if (arrived || (gu.inv && Math.hypot(gu.inv[0] - gu.x, gu.inv[1] - gu.z) < 1.4)) { gu.spd = 0; gu.t -= dt; gu.yaw += Math.sin(gu.anim * 2) * dt * 1.6; if (gu.t <= 0) { gu.decoy = null; gu.st = 'return'; backToPatrol(gu); } } }
@@ -114,8 +115,9 @@
     AI.guards.forEach((gu) => {
       const m = gu.m; const k = Math.min(1, dt * 12); if (G.isGuest()) { m.position.x = U.lerp(m.position.x, gu.x, k); m.position.z = U.lerp(m.position.z, gu.z, k); m.rotation.y = U.lerpAng(m.rotation.y, gu.yaw, k); } else { m.position.set(gu.x, 0, gu.z); m.rotation.y = gu.yaw; }
       M.animPerson(m, dt, gu.st === 'stun' || gu.st === 'sleep' ? 0 : gu.spd || 0, t);
+      if (gu.st === 'grab') { const u = m.userData; u.arms[0].rotation.x = -2.95 + Math.sin(t * 16) * 0.12; u.arms[1].rotation.x = -2.95 - Math.sin(t * 16) * 0.12; u.arms[0].rotation.z = -0.3; u.arms[1].rotation.z = 0.3; u.body.position.y = Math.abs(Math.sin(t * 8)) * 0.08; } else if (m.userData.arms) { m.userData.arms[0].rotation.z = -0.12; m.userData.arms[1].rotation.z = 0.12; }
       if (gu.st === 'sleep') { m.userData.body.rotation.x = 0.25; } else m.userData.body.rotation.x = gu.st === 'stun' ? Math.sin(t * 10) * 0.3 : 0;
-      const ic = gu.st === 'chase' ? '!' : (gu.st === 'sus' || gu.st === 'investigate' || gu.st === 'search') ? '?' : (gu.st === 'sleep' || gu.st === 'stun') ? 'z' : '';
+      const ic = gu.st === 'grab' ? '' : gu.st === 'chase' ? '!' : (gu.st === 'sus' || gu.st === 'investigate' || gu.st === 'search') ? '?' : (gu.st === 'sleep' || gu.st === 'stun') ? 'z' : '';
       if (ic !== gu.icon) { gu.icon = ic; const u = m.userData.icon; while (u.children.length) u.remove(u.children[0]); if (ic) u.add(M.icon(ic)); }
       if (ic) { m.userData.icon.position.y = 2.75 + Math.sin(t * 5) * 0.08; m.userData.icon.rotation.y = G.camYaw - m.rotation.y + Math.PI; }
       // cone
@@ -128,7 +130,7 @@
     P.lasers.forEach((gr) => { const d = L.dyn.lasers[gr.id]; d.g.visible = AI.laserOn(gr.id); });
     AI.gad.forEach((q) => { if (!q.m) { q.m = q.k === 'banana' ? M.banana() : q.k === 'decoy' ? M.decoy() : q.k === 'smoke' ? M.smoke() : M.mirror(); L.scene.add(q.m); if (q.k === 'mirror') { const beam = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 6, 6), M.MAT.laser); beam.position.set(0, 4, 0); beam.rotation.z = 0.5; q.m.add(beam); } }
       q.m.position.set(q.x, 0, q.z); if (q.k === 'decoy') { q.m.rotation.y = q.yaw; q.m.userData.key.rotation.z += dt * 8; q.m.position.y = Math.abs(Math.sin(t * 12)) * 0.08; }
-      if (q.k === 'smoke') { const life = q.life || 6, a = q.t / life; const s = q.r / 3 * (a > 0.9 ? (1 - a) * 10 : 1); q.m.scale.setScalar(Math.max(0.05, s)); q.m.material.opacity = U.clamp(q.t, 0, 1) * 0.85; q.m.rotation.y += dt * 0.3; }
+      if (q.k === 'smoke') { const life = q.life || 6, a = q.t / life; const s = q.r / 3 * (a > 0.9 ? (1 - a) * 10 : 1); q.m.scale.setScalar(Math.max(0.05, s)); q.m.material.opacity = U.clamp(q.t, 0, 1) * 0.92; q.m.rotation.y += dt * 0.3; q.m.position.y = Math.sin(t * 1.3 + q.x) * 0.08; const br = 1 + Math.sin(t * 2.1 + q.z) * 0.04; q.m.scale.x *= br; q.m.scale.z *= 2 - br; }
       if (q.k === 'banana') q.m.visible = !q.used; });
   };
 

@@ -59,7 +59,7 @@
   N.tick = function (dt) {
     const g = G(), room = g.room; if (!room || !room.opened || !g.hero) return;
     pT += dt; const h = g.hero;
-    if (pT >= 0.1) { pT = 0; room.broadcast({ t: 'p', id: room.pid, n: g.myName(), c: GH.UI.color, lv: g.lvl, x: +h.x.toFixed(2), y: +h.y.toFixed(2), z: +h.z.toFixed(2), yw: +h.yaw.toFixed(2), sp: +h.spd.toFixed(1), rf: h.roof ? 1 : 0, vt: h.vent ? 1 : 0, iv: +h.inv.toFixed(1), an: h.anim ? (h.anim.safe ? 2 : 1) : 0, ak: h.anim ? h.anim.kind : '', hk: h.hack ? 1 : 0, ca: h.carry || '', ro: h.role, o: g.save.outfit[h.role], ph: g.phase }); }
+    if (pT >= 0.1) { pT = 0; room.broadcast({ t: 'p', id: room.pid, n: g.myName(), c: GH.UI.color, lv: g.lvl, x: +h.x.toFixed(2), y: +h.y.toFixed(2), z: +h.z.toFixed(2), yw: +h.yaw.toFixed(2), sp: +h.spd.toFixed(1), rf: h.roof ? 1 : 0, vt: h.vent ? 1 : 0, iv: +h.inv.toFixed(1), an: h.grab ? 2 : h.anim ? (h.anim.safe ? 2 : 1) : 0, ak: h.grab ? 'grab' : h.anim ? h.anim.kind : '', hk: h.hack ? 1 : 0, ca: h.carry || '', ro: h.role, o: g.save.outfit[h.role], ph: g.phase }); }
     if (room.isHost && !g.hub) { wT += dt; if (wT >= 0.1) { wT = 0; room.broadcast({ t: 'w', id: room.pid, lv: g.lvl, s: GH.AI.snap(), tm: +g.time.toFixed(1) }); } }
     // remote avatars
     for (const k in g.remotes) { const r = g.remotes[k]; const same = r.lvl === g.lvl;
@@ -68,7 +68,8 @@
       r.model.visible = same && !r.vent && g.phase !== 'done' && !g.escape; if (!same) continue;
       const k2 = Math.min(1, dt * 10), mp = r.model.position; mp.x = U.lerp(mp.x, r.x, k2); mp.y = U.lerp(mp.y, r.y, k2); mp.z = U.lerp(mp.z, r.z, k2); r.model.rotation.y = U.lerpAng(r.model.rotation.y, r.yw, k2);
       M.animPerson(r.model, dt, r.an ? 0 : r.sp, g.t); const u = r.model.userData; u.body.rotation.x = 0;
-      if (r.ak === 'flip' || r.ak === 'leap' || r.ak === 'vault') u.body.rotation.x = (g.t * 12) % (Math.PI * 2);
+      u.body.rotation.z = 0; if (r.ak === 'flip' || r.ak === 'leap' || r.ak === 'vault') u.body.rotation.x = (g.t * 12) % (Math.PI * 2);
+      if (r.ak === 'grab') { u.body.rotation.z = Math.PI / 2 * 0.92 + Math.sin(g.t * 11) * 0.08; u.legs[0].rotation.x = Math.sin(g.t * 26); u.legs[1].rotation.x = -Math.sin(g.t * 26); u.arms[0].rotation.x = -2.2 + Math.sin(g.t * 21) * 0.8; u.arms[1].rotation.x = -2.2 - Math.sin(g.t * 21) * 0.8; }
       if (r.hk) { u.arms[0].rotation.x = -1.2; u.arms[1].rotation.x = -1.2 + Math.sin(g.t * 20) * 0.15; }
       const want = r.carry === 'target' ? 't' : (r.carry || ''); if (want !== r.carryK) { r.carryK = want; while (u.carry.children.length) u.carry.remove(u.carry.children[0]); if (want) { const mm = want === 't' ? M.loot(D.LEVELS[g.lvl].target.model) : M.loot((g.P.loot.find((l) => 'big:' + l.id === want) || {}).model); mm.scale.setScalar(0.75); u.carry.add(mm); } }
       if (want) { u.arms[0].rotation.x = -2.9; u.arms[1].rotation.x = -2.9; u.carry.position.y = 2.1; }
@@ -86,7 +87,7 @@
     } else if (d.t === 'w') { if (room.isHost || d.lv !== g.lvl) return; GH.AI.applySnap(d.s); if (Math.abs((d.tm || 0) - g.time) > 2 && g.phase !== 'done') g.time = d.tm; }
     else if (d.t === 'req') { if (!room.isHost || d.lv !== g.lvl) return; const dd = Object.assign({}, d.d || {}, { by: from || d.id }); if (d.e === 'finishReq') { g.finish(); return; } if (['lock', 'cam', 'laser', 'secret', 'crate', 'loot', 'carry', 'uncarry', 'deliver', 'target', 'tdrop', 'gadget', 'heat', 'ping'].indexOf(d.e) < 0) return; g.ev(d.e, dd); }
     else if (d.t === 'ev') { if (room.isHost) return; if (d.e !== 'lvl' && d.lv !== g.lvl) return; g.applyEv(d.e, d.d || {}); }
-    else if (d.t === 'caught') { if (d.to && d.to !== room.pid) return; g.onCaught(); }
+    else if (d.t === 'caught') { if (d.to && d.to !== room.pid) return; g.onCaught(d.g != null ? (d.g | 0) : -1); }
     else if (d.t === 'sync') { if (room.isHost) return; applySync(d); }
   }
 })();

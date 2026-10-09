@@ -3,7 +3,7 @@
   'use strict';
   const GH = window.GH, U = GH.U, M = GH.M, D = GH.D, LG = GH.LG, T = THREE;
   const C = D.CELL, wx = LG.wx;
-  const G = GH.G = { t: 0, ready: false, playing: false, mode: 'title', remotes: {}, room: null, camYaw: 0.3, camPitch: 0.62, camDist: 7.2, phase: 'none', stats: {}, inv: {}, sel: 'banana', loot: {} };
+  const G = GH.G = { t: 0, ready: false, playing: false, mode: 'title', remotes: {}, room: null, camYaw: 0.3, camPitch: 0.66, camDist: 8.4, phase: 'none', stats: {}, inv: {}, sel: 'banana', loot: {} };
   let UI, AI, Snd, FX;
   const SAVE_KEY = 'grokHeist.save';
   function defSave() { return { v: 1, coins: 0, stars: {}, best: {}, done: {}, unlocked: ['candy'], up: {}, owned: ['classic'], outfit: { hacker: 'classic', lookout: 'classic', acrobat: 'classic', muscle: 'classic' }, role: 'hacker', trophies: {}, heists: 0, lootTotal: 0, seenHow: false }; }
@@ -86,7 +86,7 @@
 
   /* ---------- players list (for AI) ---------- */
   G.players = function () {
-    const h = G.hero, out = [{ pid: G.myPid(), x: h.x, z: h.z, roof: h.roof, vent: h.vent, inv: h.inv, anim: !!(h.anim && h.anim.safe), carry: h.carry ? (h.carry === 'target' ? 'target' : 'big') : null, safe: G.phase === 'done' }];
+    const h = G.hero, out = [{ pid: G.myPid(), x: h.x, z: h.z, roof: h.roof, vent: h.vent, inv: h.inv, anim: !!(h.anim && h.anim.safe) || !!h.grab, carry: h.carry ? (h.carry === 'target' ? 'target' : 'big') : null, safe: G.phase === 'done' }];
     for (const k in G.remotes) { const r = G.remotes[k]; if (r.lvl !== G.lvl || !r.seen) continue; out.push({ pid: k, x: r.x, z: r.z, roof: r.roof, vent: r.vent, inv: r.inv || 0, anim: !!r.an, carry: r.carry ? (r.carry === 'target' ? 'target' : 'big') : null }); }
     return out;
   };
@@ -228,22 +228,34 @@
   };
   G.startEscape = function (res) {
     const h = G.hero; h.carry = null; G.carryRemote = {}; h.model.visible = false; for (const k in G.remotes) if (G.remotes[k].model) G.remotes[k].model.visible = false;
-    G.escape = { t: 0, res }; G.fx('engine'); UI.escapeStart();
+    G.escape = { t: 0, res, riders: [] }; G.fx('engine'); UI.escapeStart();
+    { // the whole crew piles onto the getaway ride, facing back and waving goodbye
+      const v = G.L.dyn.vehicle, kind = D.LEVELS[G.lvl].vehicle; const SEATS = { van: [[0, 2.55, 0.5], [-0.75, 2.55, -1.5], [0.75, 2.55, -1.5]], icecream: [[0, 2.55, 0.9], [-0.6, 2.55, -2.2], [0.6, 2.55, -2.2]], boat: [[0, 0.95, -1.3], [-0.5, 1.0, -0.2], [0.5, 1.0, -0.2]], balloon: [[0, 0.35, 0], [-0.5, 0.35, 0.35], [0.5, 0.35, -0.35]], kart: [[0, 0.75, -0.3], [-0.6, 1.0, -1.5], [0.6, 1.0, -1.5]] }[kind] || [[0, 2.5, 0]];
+      const crew = [{ role: h.role, outfit: G.save.outfit[h.role], me: true }]; for (const k in G.remotes) { const r = G.remotes[k]; if (r.lvl === G.lvl && r.seen) crew.push({ role: r.role || 'hacker', outfit: r.outfit || 'classic' }); }
+      if (crew.length < 3) D.ROLE_IDS.filter((r) => !crew.some((c) => c.role === r)).slice(0, 3 - crew.length).forEach((r) => crew.push({ role: r, outfit: G.save.outfit[r] })); // solo: the rest of the crew was waiting in the getaway ride
+      crew.slice(0, 3).forEach((c, i) => { const m = M.crew(c.role, c.outfit); const st = SEATS[i % SEATS.length]; m.position.set(st[0], st[1], st[2]); m.rotation.y = Math.PI; if (m.userData.blob) m.userData.blob.visible = false; v.add(m);
+        if (c.me) { const tg = D.LEVELS[G.lvl].target; const tm = M.loot(tg.model); tm.scale.setScalar(tg.big ? 0.6 : 0.9); m.userData.carry.add(tm); m.userData.carry.position.y = 2.15; }
+        G.escape.riders.push({ m, me: !!c.me, ph: i * 1.3 }); }); }
     // award
     const s = G.save, id = res.id; s.coins += res.coins; s.heists++; s.lootTotal += res.loot; const prev = s.stars[id] || [false, false, false]; s.stars[id] = prev.map((v, i) => v || res.stars[i]); if (!s.best[id] || res.time < s.best[id]) s.best[id] = res.time;
     const first = !s.done[id]; s.done[id] = true; s.trophies[id] = true; const ni = D.ORDER.indexOf(id) + 1; if (ni < D.ORDER.length && s.unlocked.indexOf(D.ORDER[ni]) < 0) { s.unlocked.push(D.ORDER[ni]); res.unlocked = D.ORDER[ni]; } res.first = first; G.persist();
   };
-  G.catchPlayer = function (pid, gu) { if (pid === G.myPid()) G.onCaught(); else if (G.room) { G.room.sendTo ? G.room.sendTo(pid, { t: 'caught', id: G.room.pid }) : G.room.broadcast({ t: 'caught', to: pid, id: G.room.pid }); } G.stats.caught++; if (G.isHost()) AI.heat = Math.max(0, AI.heat - 35); };
-  G.onCaught = function () {
+  G.GRAB_T = 1.8;
+  G.catchPlayer = function (pid, gu) { const gi = gu ? AI.guards.indexOf(gu) : -1; if (gu) G.pop(gu.x, 2.2, gu.z, ['GOTCHA!', 'HA-HA!', 'GOT YOU!'][Math.floor(Math.random() * 3)], 2.2); if (pid === G.myPid()) G.onCaught(gi); else if (G.room) { G.room.sendTo ? G.room.sendTo(pid, { t: 'caught', id: G.room.pid, g: gi }) : G.room.broadcast({ t: 'caught', to: pid, id: G.room.pid, g: gi }); } G.stats.caught++; if (G.isHost()) AI.heat = Math.max(0, AI.heat - 35); };
+  G.respawn = function () { const h = G.hero; h.grab = null; UI.caught(); h.anim = null; h.roof = false; h.vent = false; h.x = h.check[0]; h.z = h.check[1]; h.y = 0; h.inv = 3; h.spd = 0; };
+  G.onCaught = function (gi) {
     const h = G.hero; if (h.inv > 0 || G.phase === 'done') return; if (UI.hackOpen && UI.hackOpen()) UI.hackCancel();
-    G.fx('caught'); UI.caught();
+    if (h.grab) return; G.fx('caught');
     if (h.carry && h.carry.indexOf('big') === 0) G.ev('uncarry', { id: h.carry.slice(4), home: true });
-    h.anim = null; h.roof = false; h.vent = false; h.x = h.check[0]; h.z = h.check[1]; h.y = 0; h.inv = 3; h.spd = 0;
+    h.anim = null; h.roof = false; h.vent = false; h.spd = 0;
     if (G.isGuest()) G.stats.caught++;
+    const gu = gi != null && gi >= 0 ? AI.guards[gi] : null;
+    if (gu) { h.grab = { t: 0, dur: G.GRAB_T, g: gi, x0: h.x, z0: h.z }; G.pop(gu.x, 4.9, gu.z, ['Hey! Put me down!', 'Nooo!', 'Eek!'][Math.floor(Math.random() * 3)], 2.2); return; }
+    G.respawn();
   };
 
   /* ---------- per-frame hero ---------- */
-  function solidAt(x, z) { const P = G.P, h = G.hero; const cx = LG.cx(x), cz = LG.cx(z); if (h.roof) return !LG.inside(P, cx, cz) || !P.roofCell[cz][cx]; return LG.solid(P, cx, cz); }
+  function solidAt(x, z) { const P = G.P, h = G.hero; const cx = LG.cx(x), cz = LG.cx(z); if (h.roof) return !LG.inside(P, cx, cz) || !P.roofCell[cz][cx] || !!(P.roofBlock && P.roofBlock[cz][cx]); return LG.solid(P, cx, cz); }
   function collide(px, pz, r) {
     for (let it = 0; it < 3; it++) { let moved = false; const x0 = LG.cx(px - r), x1 = LG.cx(px + r), z0 = LG.cx(pz - r), z1 = LG.cx(pz + r);
       for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) { if (!solidAt(cx * C + 1, cz * C + 1)) continue; const qx = U.clamp(px, cx * C, cx * C + C), qz = U.clamp(pz, cz * C, cz * C + C); let dx = px - qx, dz = pz - qz, d = Math.hypot(dx, dz);
@@ -256,6 +268,9 @@
   G.collide = collide;
   function heroStep(dt) {
     const h = G.hero; h.inv = Math.max(0, h.inv - dt); h.abCd = Math.max(0, h.abCd - dt); h.pingT = Math.max(0, h.pingT - dt);
+    if (h.grab) { const gr = h.grab; gr.t += dt; const gu = AI.guards[gr.g]; const gm = gu && gu.m ? gu.m.position : null; const gx = gm ? gm.x : (gu ? gu.x : gr.x0), gz = gm ? gm.z : (gu ? gu.z : gr.z0); const gy = gu ? (gu.m ? gu.m.rotation.y : gu.yaw) : 0;
+      const k = Math.min(1, gr.t / 0.3), e = k * k * (3 - 2 * k); h.x = U.lerp(gr.x0, gx + Math.cos(gy) * 0.8, e); h.z = U.lerp(gr.z0, gz - Math.sin(gy) * 0.8, e); h.y = e * 2.3 + (k >= 1 ? Math.abs(Math.sin(gr.t * 8)) * 0.08 : 0); h.yaw = gy; h.spd = 0;
+      if (gr.t >= gr.dur) G.respawn(); return; }
     if (h.anim) { const a = h.anim; a.t += dt; const k = Math.min(1, a.t / a.dur), e = k * k * (3 - 2 * k);
       h.x = U.lerp(a.from[0], a.to[0], e); h.z = U.lerp(a.from[2], a.to[2], e); h.y = U.lerp(a.from[1], a.to[1], e) + Math.sin(k * Math.PI) * (a.arc || 0); h.vent = !!a.hide && k > 0.15 && k < 0.85;
       if (k >= 1) { h.anim = null; h.vent = false; h.y = a.to[1]; if (a.done) a.done(); } h.spd = 0; return; }
@@ -276,8 +291,9 @@
     const u = m.userData; M.animPerson(m, dt, h.anim ? 0 : h.spd, G.t);
     u.body.rotation.x = 0; u.body.rotation.z = 0;
     if (h.anim) { const k = h.anim.t / h.anim.dur; if (h.anim.spin || h.anim.kind === 'vault' || h.anim.kind === 'leap') u.body.rotation.x = k * Math.PI * 2; if (h.anim.wallrun) u.body.rotation.z = Math.sin(k * Math.PI) * 0.6; if (h.anim.kind === 'hook') { u.arms[1].rotation.x = -2.8; } }
+    if (h.grab) { const k = Math.min(1, h.grab.t / 0.3), w = G.t; u.body.rotation.z = k * Math.PI / 2 * 0.92 + Math.sin(w * 11) * 0.08; u.legs[0].rotation.x = Math.sin(w * 26) * 1.0; u.legs[1].rotation.x = -Math.sin(w * 26) * 1.0; u.arms[0].rotation.x = -2.2 + Math.sin(w * 21) * 0.8; u.arms[1].rotation.x = -2.2 - Math.sin(w * 21) * 0.8; }
     if (h.hack) { u.arms[0].rotation.x = -1.2; u.arms[1].rotation.x = -1.2 + Math.sin(G.t * 20) * 0.15; }
-    u.blob.visible = !h.roof && !h.anim;
+    u.blob.visible = !h.roof && !h.anim && !h.grab;
     // carried item
     const want = h.carry === 'target' ? 't' : h.carry ? h.carry : ''; if (want !== (h.carryK || '')) { h.carryK = want; while (u.carry.children.length) u.carry.remove(u.carry.children[0]); if (want) { const mm = want === 't' ? M.loot(D.LEVELS[G.lvl].target.model) : M.loot((G.P.loot.find((l) => 'big:' + l.id === want) || {}).model); mm.scale.setScalar(want === 't' && !D.LEVELS[G.lvl].target.big ? 0.8 : 0.7); u.carry.add(mm); } }
     if (want) { u.arms[0].rotation.x = -2.9; u.arms[1].rotation.x = -2.9; u.carry.position.y = 2.1 + Math.sin(G.t * 6) * 0.04; }
@@ -287,12 +303,16 @@
   /* ---------- camera ---------- */
   function camStep(dt) {
     const h = G.hero; const c = UI.cam; G.camYaw -= c.dx * 0.0065; G.camPitch = U.clamp(G.camPitch + c.dy * 0.004, 0.22, 1.2); c.dx = 0; c.dy = 0;
-    if (G.escape) { const v = G.L.dyn.vehicle.position; G.camYaw += dt * 0.5; const tx = v.x, ty = v.y + 1.5, tz = v.z; const d = 9.5; G.cam.position.set(tx + Math.sin(G.camYaw) * d, ty + 7.5, tz + Math.cos(G.camYaw) * d); G.cam.lookAt(tx, ty, tz); return; }
+    if (G.escape) { const vv = G.L.dyn.vehicle, v = vv.position, e = G.escape; const ry = vv.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry);
+      if (!e.cam) { e.cam = new T.Vector3(v.x - fx * 8 - fz * 2.6, v.y + 7.2, v.z - fz * 8 + fx * 2.6); }
+      const want = new T.Vector3(v.x - fx * 9.5 - fz * 2.8, v.y + 7.6, v.z - fz * 9.5 + fx * 2.8); e.cam.lerp(want, Math.min(1, dt * (e.t < 1.2 ? 0.6 : 1.6)));
+      G.cam.position.copy(e.cam); G.cam.lookAt(v.x, v.y + 1.8, v.z); return; }
     if (G.mode === 'title') { G.camYaw += dt * 0.12; const cx = G.P.W, cz = G.P.H; G.cam.position.set(cx + Math.sin(G.camYaw) * 46, 22, cz + Math.cos(G.camYaw) * 46); G.cam.lookAt(cx, 2, cz); return; }
     if (G.camOverride) { G.cam.position.copy(G.camOverride.pos); G.cam.lookAt(G.camOverride.look); return; }
     const tx = h.x, ty = h.y + 1.5, tz = h.z; let dist = G.camDist; const p = G.camPitch;
     // walls between hero and camera: tilt the camera up (more top-down) so walls never fill the screen
-    const ch = (h.roof ? 0 : 1); let hmax = 99; const cs = Math.sin(G.camYaw), cc = Math.cos(G.camYaw);
+    const ch = (h.roof || G.inside) ? 0 : 1; // inside, walls-down cutaway handles occlusion, so the camera keeps its full height
+    let hmax = 99; const cs = Math.sin(G.camYaw), cc = Math.cos(G.camYaw);
     if (ch) for (let s = 0.5; s < dist; s += 0.25) { const cx = LG.cx(tx + cs * s), cz = LG.cx(tz + cc * s); if (!LG.inside(G.P, cx, cz)) break; const q = G.P.ch[cz][cx]; if (q === '#' || q === 'S' && !G.P.state.secret || q === 'L' && !G.P.state.locks[G.P.lockAt[cx + ',' + cz]]) { hmax = Math.max(0.6, s - 0.45); break; } }
     let pe = p; if (dist * Math.cos(pe) > hmax) { pe = Math.max(p, Math.min(0.95, Math.acos(U.clamp(hmax / dist, 0, 1)))); } // gentle tilt; the x-ray cutaway handles the rest
     G.camPE = U.lerp(G.camPE == null ? pe : G.camPE, pe, Math.min(1, dt * 6));
@@ -315,6 +335,8 @@
     if (G.escape) { const e = G.escape; e.t += dt; const v = L.dyn.vehicle; const kind = D.LEVELS[G.lvl].vehicle; const sp = Math.min(14, e.t * 6);
       if (kind === 'balloon') v.position.y += dt * Math.min(4, e.t * 1.5); else { const f = new T.Vector3(0, 0, 1).applyAxisAngle(new T.Vector3(0, 1, 0), v.rotation.y); if (e.t > 0.6) v.position.addScaledVector(f, sp * dt); }
       if (e.t > 0.6 && Math.random() < 0.5) FX.burst(v.position.x, v.position.y + 0.6, v.position.z, kind === 'boat' ? '#ffffff' : '#ffd23f', 2, 0.4);
+      (e.riders || []).forEach((r) => { const u = r.m.userData; M.animPerson(r.m, dt, 0, G.t + r.ph); const w = G.t * 9 + r.ph; u.body.position.y = Math.abs(Math.sin(w * 0.7)) * 0.12;
+        if (r.me) { u.arms[0].rotation.x = -2.9; u.arms[1].rotation.x = -2.9; u.carry.position.y = 2.15 + Math.abs(Math.sin(w * 0.7)) * 0.12; } else { u.arms[0].rotation.x = -2.7 + Math.sin(w) * 0.45; u.arms[1].rotation.x = -0.2; u.arms[0].rotation.z = 0.3; } });
       if (e.t > 3.6 && !e.shown) { e.shown = true; UI.results(e.res); } }
     // dynamic level objects
     const P = G.P;
@@ -327,13 +349,16 @@
     L.dyn.roofPts.forEach((r) => { r.scale.setScalar(1 + Math.sin(G.t * 4) * 0.08); });
     if (L.dyn.holo) { L.dyn.holo.rotation.y += dt * 0.6; L.dyn.holo.position.y = 1.6 + Math.sin(G.t * 1.5) * 0.08; }
     L.anim.forEach((f) => f(dt));
-    if (L.water) L.water.position.y = -0.55 + Math.sin(G.t * 1.2) * 0.05;
+    if (L.water) L.water.position.y = L.waterY + Math.sin(G.t * 1.2) * 0.05;
     if (L.crewM) L.crewM.forEach((m, i) => { M.animPerson(m, dt, 0, G.t + i); m.rotation.y = Math.sin(G.t * 0.8 + i) * 0.25; });
     if (!G.hub) AI.draw(dt);
     heroDraw(dt);
     if (GH.Net) GH.Net.tick(dt);
     // roof visibility: hide when inside
-    { const h = G.hero; const cx = LG.cx(h.x), cz = LG.cx(h.z); const inside = !h.roof && LG.inside(P, cx, cz) && P.room[cz] && (P.room[cz][cx] >= 0 || 'DLSZ'.indexOf(P.ch[cz][cx]) >= 0) && G.mode !== 'title' && !G.escape; L.roof.visible = !inside || !!(G.camOverride && G.camOverride.roof); }
+    { const h = G.hero; const cx = LG.cx(h.x), cz = LG.cx(h.z); const inside = !h.roof && LG.inside(P, cx, cz) && P.room[cz] && (P.room[cz][cx] >= 0 || 'DLSZ'.indexOf(P.ch[cz][cx]) >= 0) && G.mode !== 'title' && !G.escape; L.roof.visible = !inside || !!(G.camOverride && G.camOverride.roof); G.inside = inside && !(G.camOverride && G.camOverride.roof);
+      (L.lids || []).forEach((ld) => { let v = !L.roof.visible && !(h.x > ld.x0 - 6 && h.x < ld.x1 + 6 && h.z > ld.z0 - 6 && h.z < ld.z1 + 6);
+        if (v) { const cp = G.cam.position, ddx = cp.x - h.x, ddz = cp.z - h.z, n = Math.ceil(Math.hypot(ddx, ddz)) + 6, ln = Math.hypot(ddx, ddz) || 1; for (let i = 0; i <= n && v; i++) { const px = h.x + ddx / ln * i, pz = h.z + ddz / ln * i; if (px > ld.x0 - 3.5 && px < ld.x1 + 3.5 && pz > ld.z0 - 3.5 && pz < ld.z1 + 3.5) v = false; } }
+        ld.m.visible = v; }); }
     // objective marker
     { const mk = L.marker; let pos = null; const S = P.state; if (G.phase === 'sneak' && P.target) pos = S.target === 'home' ? [wx(P.target.x), wx(P.target.z)] : S.target.drop; else if (G.phase === 'escape') { if (G.hero.carry === 'target' || (S.target && S.target.by)) pos = [L.dyn.vehicle.position.x, L.dyn.vehicle.position.z]; else if (S.target && S.target.drop) pos = S.target.drop; }
       mk.visible = !!pos && G.mode !== 'title'; if (pos) { mk.position.set(pos[0], 3.6 + Math.sin(G.t * 3) * 0.25, pos[1]); mk.rotation.y += dt * 2; } G.objPos = pos; }
@@ -342,7 +367,7 @@
     // sun follows
     const h = G.hero; L.sun.position.set(h.x + L.sunOff.x, L.sunOff.y, h.z + L.sunOff.z); L.sun.target.position.set(h.x, 0, h.z); L.dome.position.copy(G.cam.position);
     camStep(dt); FX.step(dt);
-    { const cu = M.cutU; cu.uCut.value = (G.playing && !G.escape && G.mode !== 'title' && !G.camOverride && !h.roof) ? 1 : 0; cu.uHero.value.set(h.x, h.y + 1.0, h.z); cu.uCam.value.copy(G.cam.position); } Snd.tick(dt, AI.alarmT > 0);
+    { const cu = M.cutU; cu.uCut.value = (G.playing && !G.escape && G.mode !== 'title' && !h.roof && G.inside) ? 1 : 0; cu.uHero.value.set(h.x, h.y + 1.0, h.z); cu.uCam.value.copy(G.cam.position); } Snd.tick(dt, AI.alarmT > 0);
   };
 
   /* ---------- quality ---------- */
@@ -356,12 +381,12 @@
   let last = performance.now(), fpsT = 0, fpsN = 0;
   function loop(now) {
     requestAnimationFrame(loop); if (G.noLoop) return;
-    const raw = Math.min(0.1, (now - last) / 1000); last = now;
+    const real = Math.max(0, (now - last) / 1000), raw = Math.min(0.1, real); last = now;
     try { G.step(raw); G.renderer.render(G.L.scene, G.cam); UI.frame(raw); } catch (e) { console.error(e); }
-    fpsN++; fpsT += raw; if (fpsT > 4) { G.fps = fpsN / fpsT; fpsN = 0; fpsT = 0; if (G.playing && G.gfx === 'high' && !G.gfxUser && !G.noAuto) { if (G.fps < 24) { G.fpsLow = (G.fpsLow || 0) + 1; if (G.fpsLow >= 2) G.setQuality('low', false); } else G.fpsLow = 0; } }
+    fpsN++; fpsT += Math.min(1, real); if (fpsT > 4) { G.fps = fpsN / fpsT; fpsN = 0; fpsT = 0; if (G.playing && G.gfx === 'high' && !G.gfxUser && !G.noAuto) { if (G.fps < 24) { G.fpsLow = (G.fpsLow || 0) + 1; if (G.fpsLow >= 2) G.setQuality('low', false); } else G.fpsLow = 0; } }
   }
   G.fx = function (k, x, z) { Snd.fx(k); if (FX.event) FX.event(k, x, z); };
-  G.pop = function (x, y, z, txt) { FX.pop(x, y, z, txt); };
+  G.pop = function (x, y, z, txt, life) { FX.pop(x, y, z, txt, life); };
   G.say = function (txt, bad) { UI.banner(txt, bad); };
 
   /* ---------- test hooks ---------- */
