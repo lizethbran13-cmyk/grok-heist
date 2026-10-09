@@ -72,7 +72,7 @@
   UI.labels = function () {
     const box = $('labels'); const want = [];
     if (G.L && G.hub && G.L.stationPts && G.mode === 'hub') G.L.stationPts.forEach((s) => want.push({ x: s.X, y: 3.2, z: s.Z, t: s.label, c: '#7c3aed' }));
-    for (const k in G.remotes) { const r = G.remotes[k]; if (r.model && r.model.visible) want.push({ x: r.x, y: r.y + 2.8, z: r.z, t: (D.ROLES[r.role] ? D.ROLES[r.role].icon + ' ' : '') + r.name, c: r.color || '#ff4fd8' }); }
+    for (const k in G.remotes) { const r = G.remotes[k]; if (r.model && r.model.visible) want.push({ x: r.model.position.x, y: r.model.position.y + 2.35, z: r.model.position.z, t: (D.ROLES[r.role] ? D.ROLES[r.role].icon + ' ' : '') + r.name, c: r.color || '#ff4fd8' }); }
     while (box.children.length < want.length) { const el = document.createElement('div'); el.className = 'lbl'; box.appendChild(el); }
     [...box.children].forEach((el, i) => { const w = want[i]; if (!w) { el.style.display = 'none'; return; } const v = new T.Vector3(w.x, w.y, w.z).project(G.cam); const d = Math.hypot(w.x - G.cam.position.x, w.z - G.cam.position.z); if (v.z > 1 || d > 26) { el.style.display = 'none'; return; } el.style.display = ''; el.textContent = w.t; el.style.background = w.c; el.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * innerWidth) + 'px,' + ((-v.y * 0.5 + 0.5) * innerHeight) + 'px) translate(-50%,-50%)'; });
   };

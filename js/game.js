@@ -287,7 +287,7 @@
   /* ---------- camera ---------- */
   function camStep(dt) {
     const h = G.hero; const c = UI.cam; G.camYaw -= c.dx * 0.0065; G.camPitch = U.clamp(G.camPitch + c.dy * 0.004, 0.22, 1.2); c.dx = 0; c.dy = 0;
-    if (G.escape) { const v = G.L.dyn.vehicle.position; G.camYaw += dt * 0.5; const tx = v.x, ty = v.y + 1.5, tz = v.z; const d = 11; G.cam.position.set(tx + Math.sin(G.camYaw) * d, ty + 5, tz + Math.cos(G.camYaw) * d); G.cam.lookAt(tx, ty, tz); return; }
+    if (G.escape) { const v = G.L.dyn.vehicle.position; G.camYaw += dt * 0.5; const tx = v.x, ty = v.y + 1.5, tz = v.z; const d = 9.5; G.cam.position.set(tx + Math.sin(G.camYaw) * d, ty + 7.5, tz + Math.cos(G.camYaw) * d); G.cam.lookAt(tx, ty, tz); return; }
     if (G.mode === 'title') { G.camYaw += dt * 0.12; const cx = G.P.W, cz = G.P.H; G.cam.position.set(cx + Math.sin(G.camYaw) * 46, 22, cz + Math.cos(G.camYaw) * 46); G.cam.lookAt(cx, 2, cz); return; }
     if (G.camOverride) { G.cam.position.copy(G.camOverride.pos); G.cam.lookAt(G.camOverride.look); return; }
     const tx = h.x, ty = h.y + 1.5, tz = h.z; let dist = G.camDist; const p = G.camPitch;
