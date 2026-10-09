@@ -305,20 +305,53 @@
 
     /* ---------- roofs ---------- */
     const roofCol = th.roof;
+    // upper storey: facade wall between the rooms' wall tops and the walkable roof, with windows + cornices (hidden with the roof when you are inside)
+    const UPH = RH - 0.5 - WH, winC = def.sky === 'night' ? '#ffe9a8' : '#bfe6ff';
+    function upper(X, Z, dx, dz, x, z) {
+      const ex = X + dx * 0.85, ez = Z + dz * 0.85, len = 2.3, yc = WH + UPH / 2;
+      if (dx) Rf.box(0.32, UPH + 0.02, len, 0.04, th.facade, ex, yc, Z); else Rf.box(len, UPH + 0.02, 0.32, 0.04, th.facade, X, yc, ez);
+      // cornice bands
+      if (dx) { Rf.box(0.46, 0.26, len, 0.08, th.trim, ex + dx * 0.05, WH + 0.1, Z); Rf.box(0.5, 0.3, len, 0.1, th.base, ex + dx * 0.06, RH - 0.45, Z); }
+      else { Rf.box(len, 0.26, 0.46, 0.08, th.trim, X, WH + 0.1, ez + dz * 0.05); Rf.box(len, 0.3, 0.5, 0.1, th.base, X, RH - 0.45, ez + dz * 0.06); }
+      // window on the outer face
+      const ox = ex + dx * 0.17, oz = ez + dz * 0.17, wy = WH + UPH / 2 + 0.05, rx = dz ? Math.PI / 2 : 0, rz = dx ? Math.PI / 2 : 0;
+      if (th.win === 'round' || th.win === 'porthole') { Rf.cyl(0.5, 0.5, 0.08, winC, ox, wy, oz, rx, 0, rz, 'glow', 18); Rf.tor(0.52, 0.09, th.trim, ox + dx * 0.02, wy, oz + dz * 0.02, dz ? 0 : 0, dx ? Math.PI / 2 : 0, 0, 'gloss'); }
+      else if (th.win === 'arch') { if (dx) { Rf.box(0.08, 0.9, 0.9, 0.05, winC, ox, wy - 0.15, Z, 0, 0, 0, 'glow'); Rf.cyl(0.45, 0.45, 0.08, winC, ox, wy + 0.3, Z, 0, 0, Math.PI / 2, 'glow', 16); Rf.box(0.12, 0.12, 1.1, 0.04, th.trim, ox + dx * 0.02, wy - 0.62, Z); } else { Rf.box(0.9, 0.9, 0.08, 0.05, winC, X, wy - 0.15, oz, 0, 0, 0, 'glow'); Rf.cyl(0.45, 0.45, 0.08, winC, X, wy + 0.3, oz, Math.PI / 2, 0, 0, 'glow', 16); Rf.box(1.1, 0.12, 0.12, 0.04, th.trim, X, wy - 0.62, oz + dz * 0.02); } }
+      else { if (dx) { Rf.box(0.08, 1.0, 1.1, 0.05, winC, ox, wy, Z, 0, 0, 0, 'glow'); Rf.box(0.12, 1.2, 0.1, 0.03, th.trim, ox + dx * 0.02, wy, Z); Rf.box(0.12, 0.1, 1.3, 0.03, th.trim, ox + dx * 0.02, wy, Z); } else { Rf.box(1.1, 1.0, 0.08, 0.05, winC, X, wy, oz, 0, 0, 0, 'glow'); Rf.box(0.1, 1.2, 0.12, 0.03, th.trim, X, wy, oz + dz * 0.02); Rf.box(1.3, 0.1, 0.12, 0.03, th.trim, X, wy, oz + dz * 0.02); } }
+    }
     for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!P.roofCell[z][x]) continue; const X = wx(x), Z = wx(z); const sky = P.sky.some((s) => s.x === x && s.z === z); if (sky) continue;
-      Rf.geo(new T.BoxGeometry(2.0, 0.5, 2.0), (x + z) % 2 ? roofCol : M.shift(roofCol, 0, 0, -0.03), X, WH + 0.25, Z);
-      DIRS.forEach(([dx, dz]) => { if (LG.inside(P, x + dx, z + dz) && P.roofCell[z + dz][x + dx]) return; if (dx) Rf.box(0.3, 0.45, 2.0, 0.1, th.trim, X + dx * 0.9, RH + 0.2, Z); else Rf.box(2.0, 0.45, 0.3, 0.1, th.trim, X, RH + 0.2, Z + dz * 0.9);
+      const rmo = roomOf(x, z), ri = rmo ? rmo.i : 0, rc = M.shift(roofCol, ((ri * 7) % 5 - 2) * 0.012, 0, ((ri * 3) % 5 - 2) * 0.03);
+      Rf.geo(new T.BoxGeometry(2.0, 0.5, 2.0), (x + z) % 2 ? rc : M.shift(rc, 0, 0, -0.025), X, RH - 0.25, Z);
+      [[1, 0], [0, 1]].forEach(([dx, dz]) => { if (!LG.inside(P, x + dx, z + dz) || !P.roofCell[z + dz][x + dx]) return; const o = roomOf(x + dx, z + dz); if (!o || !rmo || o.i === rmo.i) return; if (dx) Rf.box(0.3, 0.3, 2.05, 0.1, th.trim, X + 1, RH + 0.1, Z); else Rf.box(2.05, 0.3, 0.3, 0.1, th.trim, X, RH + 0.1, Z + 1); });
+      DIRS.forEach(([dx, dz]) => { if (LG.inside(P, x + dx, z + dz) && P.roofCell[z + dz][x + dx]) return; upper(X, Z, dx, dz, x, z); if (dx) Rf.box(0.3, 0.45, 2.0, 0.1, th.trim, X + dx * 0.9, RH + 0.2, Z); else Rf.box(2.0, 0.45, 0.3, 0.1, th.trim, X, RH + 0.2, Z + dz * 0.9);
         if (def.id === 'castle' && (x + z) % 2 === 0) { if (dx) Rf.box(0.4, 0.7, 0.9, 0.1, '#ece6ff', X + dx * 0.9, RH + 0.75, Z); else Rf.box(0.9, 0.7, 0.4, 0.1, '#ece6ff', X, RH + 0.75, Z + dz * 0.9); }
         if (def.id === 'candy') Rf.sph(0.3, '#ffffff', X + dx * 0.95, RH - 0.1, Z + dz * 0.95, 1, 1.6, 1); });
       const rr = rnd(x * 3, z * 5); const nearSky = P.sky.some((s) => Math.abs(s.x - x) <= 1 && Math.abs(s.z - z) <= 1) || P.roofPts.some((p) => Math.abs(p.x - x) <= 1 && Math.abs(p.z - z) <= 1);
-      if (!nearSky && rr < 0.06) { const a = PR.at(Rf, X, Z, rr * 60); if (def.id === 'candy') PR.F.lollipop(a, x + z); else if (def.id === 'castle') a.cone(0.6, 1.2, '#ffd23f', 0, RH + 1.0, 0, 0, 0, 0, 'gloss'); else if (def.id === 'toys') a.box(1.2, 1.2, 1.2, 0.2, ['#ef4444', '#22c55e', '#3b82f6'][(x + z) % 3], 0, RH + 0.6, 0, 0, rr * 9, 0, 'gloss'); else { a.box(1.4, 0.9, 1.0, 0.15, '#cbd5e1', 0, RH + 0.45, 0); a.cyl(0.35, 0.35, 0.1, '#64748b', 0, RH + 0.92, 0); } }
+      if (!nearSky && rr < 0.025) { const a = PR.at(Rf, X, Z, rr * 60); if (def.id === 'candy') PR.F.lollipop(a, x + z); else if (def.id === 'castle') a.cone(0.6, 1.2, '#ffd23f', 0, RH + 1.0, 0, 0, 0, 0, 'gloss'); else if (def.id === 'toys') a.box(1.2, 1.2, 1.2, 0.2, ['#ef4444', '#22c55e', '#3b82f6'][(x + z) % 3], 0, RH + 0.6, 0, 0, rr * 9, 0, 'gloss'); else { a.box(1.4, 0.9, 1.0, 0.15, '#cbd5e1', 0, RH + 0.45, 0); a.cyl(0.35, 0.35, 0.1, '#64748b', 0, RH + 0.92, 0); } }
     }
-    if (def.id === 'castle') { const [x0, z0, x1, z1] = P.bbox; [[x0, z0 + 4], [x1, z0 + 4], [x0, z1], [x1, z1], [16, 1], [28, 1]].forEach(([x, z]) => { const X = wx(x), Z = wx(z); Rf.cyl(1.6, 1.8, 7.5, '#ece6ff', X, 3.75, Z, 0, 0, 0, null, 18); Rf.cone(2.2, 3.4, '#a593ff', X, 9.2, Z, 0, 0, 0, null, 18); Rf.cyl(0.04, 0.04, 1.6, '#64748b', X, 11.6, Z); Rf.box(0.9, 0.5, 0.04, 0.02, '#ff4fd8', X + 0.45, 12.1, Z); for (let k = 0; k < 3; k++) Rf.cap(0.18, 0.4, '#5b4b8a', X + Math.sin(k * 2.1 + 0.5) * 1.62, 5 + k * 0.3, Z + Math.cos(k * 2.1 + 0.5) * 1.62, 0, k * 2.1 + 0.5, 0); }); }
+    if (def.id === 'castle') { const [x0, z0, x1, z1] = P.bbox; [[x0, z0 + 4], [x1, z0 + 4], [x0, z1], [x1, z1], [16, 1], [28, 1]].forEach(([x, z]) => { const X = wx(x), Z = wx(z); Rf.cyl(1.6, 1.8, 10.5, '#ece6ff', X, 5.25, Z, 0, 0, 0, null, 18); Rf.tor(1.7, 0.18, '#ffd23f', X, 10.4, Z, Math.PI / 2, 0, 0, 'gloss'); Rf.cone(2.2, 3.4, '#a593ff', X, 12.2, Z, 0, 0, 0, null, 18); Rf.cyl(0.04, 0.04, 1.6, '#64748b', X, 14.6, Z); Rf.box(0.9, 0.5, 0.04, 0.02, '#ff4fd8', X + 0.45, 15.1, Z); for (let k = 0; k < 3; k++) Rf.cap(0.18, 0.4, '#5b4b8a', X + Math.sin(k * 2.1 + 0.5) * 1.62, 8 + k * 0.3, Z + Math.cos(k * 2.1 + 0.5) * 1.62, 0, k * 2.1 + 0.5, 0); }); }
     if (def.id === 'candy') { [[8, 8], [8, 20], [33, 19]].forEach(([x, z], i) => { Rf.cyl(0.9, 1.1, 5, '#ffffff', wx(x), RH + 2.5, wx(z)); for (let k = 0; k < 3; k++) Rf.tor(0.95, 0.15, '#ff4f9a', wx(x), RH + 1 + k * 1.5, wx(z), Math.PI / 2, 0, 0, 'gloss'); }); }
-    if (def.id === 'museum') { const fz = wx(30) + 1.4, fx = wx(21) + 1; const a = PR.at(Rf, fx, fz, 0); a.cone(9, 3, '#f2e9da', 0, RH + 1.5, -0.2, 0, Math.PI / 4, 0, null, 4); for (let k = -2; k <= 2; k++) if (k) { PR.F.column(PR.at(S, fx + k * 2.4, fz + 1.4, 0)); } a.box(16, 0.4, 3.5, 0.1, '#e8e0d0', 0, RH - 0.1, 0.8); }
+    if (def.id === 'museum') { const fz = wx(30) + 1.4, fx = wx(21) + 1; const a = PR.at(Rf, fx, fz, 0); a.cone(9, 2.2, '#f2e9da', 0, WH + 1.5, 0.6, 0, Math.PI / 4, 0, null, 4); for (let k = -2; k <= 2; k++) if (k) { PR.F.column(PR.at(S, fx + k * 2.4, fz + 1.4, 0)); } a.box(16, 0.4, 3.5, 0.1, '#e8e0d0', 0, WH + 0.2, 0.8); }
     if (def.id === 'toys') { const a = PR.at(Rf, wx(20), wx(28) - 0.3, 0); ['#ef4444', '#22c55e', '#3b82f6', '#ffd23f'].forEach((c, k) => { a.box(1.6, 1.6, 1.6, 0.3, c, -3.6 + k * 2.4, RH + 1.0, 0, 0, (k - 1.5) * 0.15, 0, 'gloss'); a.sph(0.4, '#ffffff', -3.6 + k * 2.4, RH + 1.0, 0.82, 1, 1, 0.3, 'glow'); }); PR.F.teddy && 0; }
     if (def.id === 'hideout') { const a = PR.at(Rf, wx(26), wx(6), 0); a.cyl(0.08, 0.08, 1.4, '#94a3b8', 0, RH + 0.7, 0); a.sph(0.9, '#e5e7eb', 0, RH + 1.6, 0.3, 1, 1, 0.35, 'gloss'); a.box(1.0, 2.2, 1.0, 0.1, '#8a3f2a', -12, RH + 1.1, 2); }
-    const roofG = Rf.group(true); L.roof = new T.Group(); L.roof.add(roofG); L.dyn.sky.forEach((m) => L.roof.add(m)); scene.add(L.roof);
+    // one big rooftop feature per room (gives every roof some character)
+    const ROOFP = { candy: ['cupcake', 'gumballMachine', 'lollipop', 'gumdrop', 'candyCane'], museum: ['pyramid', 'planet', 'fountain', 'column'], ship: ['umbrella', 'deckChair', 'lifebuoy', 'palm', 'barrel'], castle: ['cloudBush', 'rainbowArch', 'cloudPuff', 'horse'], toys: ['rocket', 'dino', 'gifts', 'plushPile', 'ballBin'], hideout: ['umbrella', 'plant', 'cooler'] }[def.id] || [];
+    const roofProps = [];
+    P.rooms.forEach((r, i) => { if (!ROOFP.length) return; const cx = Math.floor((r.x0 + r.x1) / 2), cz = Math.floor((r.z0 + r.z1) / 2); if (!P.roofCell[cz] || !P.roofCell[cz][cx]) return; if ((r.x1 - r.x0) < 3 || (r.z1 - r.z0) < 3) return;
+      if (P.sky.some((q) => Math.abs(q.x - cx) <= 2 && Math.abs(q.z - cz) <= 2) || P.roofPts.some((q) => Math.abs(q.x - cx) <= 2 && Math.abs(q.z - cz) <= 2)) return;
+      const k = ROOFP[i % ROOFP.length]; if (!PR.F[k]) return; const pb = new M.B(); try { PR.F[k](PR.at(pb, 0, 0, (i * 1.3) % 6.28), i); } catch (e) { return; } const g = pb.group(true); const sc = def.id === 'castle' ? 1.6 : 1.5; g.scale.setScalar(sc); g.position.set(wx(cx), RH, wx(cz)); roofProps.push(g); });
+    const roofG = Rf.group(true); L.roof = new T.Group(); roofProps.forEach((g) => L.roof.add(g)); L.roof.add(roofG); L.dyn.sky.forEach((m) => L.roof.add(m)); scene.add(L.roof);
+    if (P.start && !def.hub || def.hub) { // big name sign over the entrance
+      const [x0, z0, x1, z1] = P.bbox, st = P.start; let sx, sz, ry;
+      if (st.z > z1) { sx = wx(st.x); sz = (z1 + 1) * C + 0.25; ry = 0; } else if (st.z < z0) { sx = wx(st.x); sz = z0 * C - 0.25; ry = Math.PI; } else if (st.x > x1) { sx = (x1 + 1) * C + 0.25; sz = wx(st.z); ry = Math.PI / 2; } else { sx = x0 * C - 0.25; sz = wx(st.z); ry = -Math.PI / 2; }
+      const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 224; const cx = cv.getContext('2d');
+      cx.fillStyle = th.trim; cx.fillRect(0, 0, 1024, 224); cx.fillStyle = th.base; cx.fillRect(10, 10, 1004, 204); cx.fillStyle = th.trim; cx.fillRect(22, 22, 980, 180);
+      const txt = (def.full || def.name).toUpperCase(); let fs = 120; cx.font = '900 ' + fs + 'px "Lilita One", "Arial Black", sans-serif'; while (cx.measureText(txt).width > 920 && fs > 40) { fs -= 4; cx.font = '900 ' + fs + 'px "Lilita One", "Arial Black", sans-serif'; }
+      cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.lineWidth = 14; cx.strokeStyle = '#ffffff'; cx.strokeText(txt, 512, 118); cx.fillStyle = th.base; cx.fillText(txt, 512, 118);
+      const tex = new T.CanvasTexture(cv); tex.anisotropy = 4; const sign = new T.Mesh(new T.PlaneGeometry(9, 1.97), new T.MeshBasicMaterial({ map: tex }));
+      const g = new T.Group(); g.position.set(sx, WH + UPH / 2 + 0.05, sz); g.rotation.y = ry; sign.position.z = 0.16; g.add(sign);
+      const fb = new M.B(); fb.box(9.5, 2.4, 0.26, 0.1, th.base, 0, 0, 0, 0, 0, 0, 'gloss'); [-1, 1].forEach((k) => fb.sph(0.22, '#ffd23f', k * 4.75, 1.2, 0.15, 1, 1, 1, 0, 0, 0, 'glow')); fb.meshes(true).forEach((m) => g.add(m)); L.roof.add(g); L.sign = g; }
+
 
     /* ---------- getaway vehicle ---------- */
     if (P.exit) { const v = M.vehicle(def.vehicle || 'van'); v.position.set(wx(P.exit.x), def.water ? -0.6 : 0, wx(P.exit.z)); v.rotation.y = def.water ? Math.PI / 2 : -Math.PI / 2; scene.add(v); L.dyn.vehicle = v; }

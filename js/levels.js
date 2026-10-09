@@ -8,7 +8,7 @@
   'use strict';
   const GH = window.GH = window.GH || {};
   const D = GH.D = {};
-  D.CELL = 2; D.WALL_H = 3.6; D.ROOF_H = 4.1;
+  D.CELL = 2; D.WALL_H = 3.6; D.ROOF_H = 6.4; // second storey facade above the rooms: buildings read as real 2-floor buildings outside
 
   D.ROLES = {
     hacker: { name: 'Hacker', icon: '💻', col: '#8b5cf6', ab: 'HACK', abIcon: '💻', desc: 'Opens locked doors, shuts off cameras and lasers with a quick mini-game.' },
