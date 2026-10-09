@@ -148,7 +148,7 @@
   function roleCards() { const t = G.takenRoles(); return '<div class="rolecards">' + D.ROLE_IDS.map((r) => { const R = D.ROLES[r]; return '<button class="rc' + (G.hero.role === r ? ' on' : '') + (t[r] ? ' taken' : '') + '" data-r="' + r + '" style="background:' + R.col + '"><div class="ri">' + R.icon + '</div><div class="rn">' + R.name + '</div><div class="rd">' + (t[r] ? esc(t[r]) : R.ab) + '</div></button>'; }).join('') + '</div>'; }
   function bindRoles(c) { c.querySelectorAll('[data-r]').forEach((b) => b.onclick = () => { if (G.trySwap(b.dataset.r)) { c.querySelectorAll('[data-r]').forEach((x) => x.classList.toggle('on', x.dataset.r === b.dataset.r)); const d = c.querySelector('#roleDesc'); if (d) d.textContent = D.ROLES[b.dataset.r].desc; } }); }
   UI.roleSelect = function () {
-    if (G.hub && G.L.lineup) { const p = G.L.lineup; G.camOverride = { pos: new T.Vector3(15, 2.6, 38.5), look: new T.Vector3(15, 1.35, 29) }; }
+    if (G.hub && G.L.lineup) { const p = G.L.lineup; G.camOverride = { pos: new T.Vector3(15, 3.0, 39.2), look: new T.Vector3(15, 0.15, 29) }; }
     UI.panel('<h2>🦹 PICK YOUR ROLE</h2>' + roleCards() + '<p class="sub" id="roleDesc" style="margin-top:8px">' + D.ROLES[G.hero.role].desc + '</p><p class="sub" style="font-size:12px">' + (G.room && G.room.opened ? 'Each friend picks a different role. You can swap any time to a free role.' : 'Playing solo? Swap roles any time - even in the middle of a heist!') + '</p><div class="btnrow"><button class="btn primary" data-close>OK!</button></div>', bindRoles, G.hub ? 'low' : '');
   };
   UI.upgrades = function () {

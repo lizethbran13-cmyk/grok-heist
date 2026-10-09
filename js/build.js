@@ -252,7 +252,7 @@
       fx([[3, 21], [3, 19], [3, 23]], true); PR.F.mirror(PR.at(S, 6.6, 43, Math.PI / 2)); PR.F.clothesRack(PR.at(S, 7.2, 39, Math.PI / 2), 1); PR.F.clothesRack(PR.at(S, 7.2, 47, Math.PI / 2), 4);
       const stage = []; for (let x = 4; x <= 10; x++) stage.push([x, 14]); fx(stage); S.box(14, 0.35, 2.2, 0.15, '#7c3aed', 15, 0.17, 29); S.box(14.2, 0.08, 2.3, 0.04, '#ffd23f', 15, 0.36, 29, 0, 0, 0, 'glow');
       for (let k = 0; k < 4; k++) { S.cyl(0.9, 0.9, 0.05, '#fff3c4', 9.5 + k * 3.7, 0.4, 29, 0, 0, 0, 'glow'); } S.box(14, 0.5, 0.3, 0.1, '#1f2937', 15, 3.3, 27.2); for (let k = 0; k < 4; k++) S.cyl(0.18, 0.28, 0.4, '#fff3c4', 9.5 + k * 3.7, 3.0, 27.4, 0.6, 0, 0, 'glow');
-      L.lineup = [0, 1, 2, 3].map((k) => [9.5 + k * 3.7, 0.38, 29]);
+      L.lineup = [0, 1, 2, 3].map((k) => [12.45 + k * 1.7, 0.38, 29]);
       L.trophySpots = [[14, 15], [17, 14], [20, 15], [14, 21], [20, 21]]; fx(L.trophySpots); L.trophySpots.forEach(([x, z], i) => PR.F.trophyPed(PR.at(S, wx(x), wx(z), 0), i));
       fx([[26, 15], [27, 15], [26, 16], [27, 16], [26, 17], [27, 17]]); const van = M.vehicle('van'); van.position.set(54, 0, 33); scene.add(van); L.dyn.hubVan = van;
       L.stationPts = def.stations.map((s) => Object.assign({}, s, { X: s.k === 'plan' ? 19 : s.k === 'van' ? 54 : s.k === 'crew' ? 15 : s.k === 'outfit' ? 6.6 : wx(s.x), Z: s.k === 'plan' ? 14 : s.k === 'van' ? 33 : s.k === 'crew' ? 29 : s.k === 'outfit' ? 43 : wx(s.z) }));
@@ -360,6 +360,7 @@
     const sg = S.group(true); sg.children.forEach((m) => { m.receiveShadow = true; }); scene.add(sg);
     const fg = FL.group(false); fg.children.forEach((m) => { m.receiveShadow = true; m.castShadow = false; }); scene.add(fg);
     L.static = [sg, fg];
+    { const base = [M.mat, M.matGloss, M.matGlow]; scene.traverse((o) => { if (o.isMesh && base.indexOf(o.material) >= 0) o.material = M.cut(o.material); }); }
     L.windows = winN;
     return L;
   };

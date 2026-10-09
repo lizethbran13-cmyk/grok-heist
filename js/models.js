@@ -32,6 +32,21 @@
     out.forEach((m) => { m.castShadow = castShadow !== false; m.receiveShadow = false; });
     return out;
   };
+  // x-ray cutaway: level geometry between the camera and the hero is cut away (dithered edge) so walls never hide you
+  M.cutU = { uHero: { value: new T.Vector3() }, uCam: { value: new T.Vector3() }, uCut: { value: 0 } };
+  const cutCache = new Map();
+  M.cut = function (mat) {
+    if (cutCache.has(mat)) return cutCache.get(mat); const m = mat.clone();
+    m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, M.cutU);
+      sh.vertexShader = 'varying vec3 vCutW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'varying vec3 vCutW;\nuniform vec3 uHero;\nuniform vec3 uCam;\nuniform float uCut;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  if (uCut > 0.5 && vCutW.y > 0.35) {
+    vec3 ab = uHero - uCam; float t = dot(vCutW - uCam, ab) / max(dot(ab, ab), 0.001);
+    if (t > 0.0 && t < 0.97) { float d = length(vCutW - (uCam + ab * t)); float r = 1.25 + 0.9 * t;
+      if (d < r) discard;
+      if (d < r + 0.45) { vec2 q = floor(gl_FragCoord.xy * 0.5); if (mod(q.x + q.y, 2.0) < 1.0) discard; } }
+  }`); };
+    m.customProgramCacheKey = () => 'cut' + mat.uuid; cutCache.set(mat, m); return m; };
   B.prototype.group = function (castShadow) { const g = new T.Group(); this.meshes(castShadow).forEach((m) => g.add(m)); return g; };
   B.prototype.geometry = function () { return U.merge(this.parts.main.concat(this.parts.gloss)); };
   M.B = B;

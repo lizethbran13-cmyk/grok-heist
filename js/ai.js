@@ -65,7 +65,7 @@
       for (const q of AI.gad) if (q.k === 'banana' && !q.used && gu.slipImm <= 0 && gu.st !== 'sleep' && Math.hypot(q.x - gu.x, q.z - gu.z) < 0.9) { q.used = true; q.t = 0; gu.st = 'stun'; gu.t = 4.5; gu.meter = {}; G.fx('slip', gu.x, gu.z); G.pop(gu.x, 2.6, gu.z, 'WHOA! 🍌'); return; }
       // vision
       const rg = range(gu), hf = half(gu); let best = null, bestD = 99;
-      players.forEach((p) => { const d = canSee(gu.x, gu.z, gu.yaw, hf, rg, p); if (d) { if (d < bestD) { bestD = d; best = p; } const rate = (gu.st === 'chase' ? 3 : 1.25) * (1.7 - d / rg) * shoes * (p.carry === 'big' ? 1.25 : 1) * (AI.alarmT > 0 ? 1.4 : 1) * (d < 1.4 ? 3 : 1); gu.meter[p.pid] = Math.min(1.2, (gu.meter[p.pid] || 0) + dt * rate); } else gu.meter[p.pid] = Math.max(0, (gu.meter[p.pid] || 0) - dt * 0.3); });
+      players.forEach((p) => { const d = canSee(gu.x, gu.z, gu.yaw, hf, rg, p); if (d) { if (d < bestD) { bestD = d; best = p; } const rate = (gu.st === 'chase' ? 3 : 1.05) * (1.7 - d / rg) * shoes * (p.carry === 'big' ? 1.25 : 1) * (AI.alarmT > 0 ? 1.4 : 1) * (d < 1.4 ? 3 : 1); gu.meter[p.pid] = Math.min(1.2, (gu.meter[p.pid] || 0) + dt * rate); } else gu.meter[p.pid] = Math.max(0, (gu.meter[p.pid] || 0) - dt * 0.3); });
       const top = best ? gu.meter[best.pid] : 0;
       if (gu.st === 'sleep') { gu.spd = 0; if (best && top > 0.5) { gu.st = 'sus'; gu.t = 2; G.pop(gu.x, 2.8, gu.z, 'Huh?!'); } return; }
       if (best && top >= 1 && gu.st !== 'chase') { gu.st = 'chase'; gu.tgt = best.pid; gu.last = [best.x, best.z]; gu.lostT = 0; gu.rT = 0; AI.addHeat(16, best.x, best.z, 'seen'); G.fx('spotted', gu.x, gu.z); G.pop(gu.x, 2.9, gu.z, '!'); }

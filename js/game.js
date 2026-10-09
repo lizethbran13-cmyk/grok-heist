@@ -294,7 +294,7 @@
     // walls between hero and camera: tilt the camera up (more top-down) so walls never fill the screen
     const ch = (h.roof ? 0 : 1); let hmax = 99; const cs = Math.sin(G.camYaw), cc = Math.cos(G.camYaw);
     if (ch) for (let s = 0.5; s < dist; s += 0.25) { const cx = LG.cx(tx + cs * s), cz = LG.cx(tz + cc * s); if (!LG.inside(G.P, cx, cz)) break; const q = G.P.ch[cz][cx]; if (q === '#' || q === 'S' && !G.P.state.secret || q === 'L' && !G.P.state.locks[G.P.lockAt[cx + ',' + cz]]) { hmax = Math.max(0.6, s - 0.45); break; } }
-    let pe = p; if (dist * Math.cos(pe) > hmax) { pe = Math.acos(U.clamp(hmax / dist, 0, 1)); if (pe > 1.25) { pe = 1.25; dist = Math.max(2.2, hmax / Math.cos(pe)); } }
+    let pe = p; if (dist * Math.cos(pe) > hmax) { pe = Math.max(p, Math.min(0.95, Math.acos(U.clamp(hmax / dist, 0, 1)))); } // gentle tilt; the x-ray cutaway handles the rest
     G.camPE = U.lerp(G.camPE == null ? pe : G.camPE, pe, Math.min(1, dt * 6));
     const dx = Math.sin(G.camYaw) * Math.cos(G.camPE), dy = Math.sin(G.camPE), dz = Math.cos(G.camYaw) * Math.cos(G.camPE);
     G.camD = U.lerp(G.camD || dist, dist, Math.min(1, dt * (dist < (G.camD || dist) ? 20 : 4)));
@@ -308,7 +308,7 @@
     if (G.playing && !G.paused) {
       if (!G.hub && G.phase !== 'done') G.time += dt;
       if (G.phase !== 'done') heroStep(dt);
-      if (!G.hub && G.isHost()) AI.step(dt);
+      if (!G.hub && G.isHost() && !G.freezeAI) AI.step(dt);
       // host: finish requests handled in net; remote target carrier reaching van
     }
     // escape cinematic
@@ -341,7 +341,8 @@
     FX.xray(G.hero.pingT > 0);
     // sun follows
     const h = G.hero; L.sun.position.set(h.x + L.sunOff.x, L.sunOff.y, h.z + L.sunOff.z); L.sun.target.position.set(h.x, 0, h.z); L.dome.position.copy(G.cam.position);
-    camStep(dt); FX.step(dt); Snd.tick(dt, AI.alarmT > 0);
+    camStep(dt); FX.step(dt);
+    { const cu = M.cutU; cu.uCut.value = (G.playing && !G.escape && G.mode !== 'title' && !G.camOverride && !h.roof) ? 1 : 0; cu.uHero.value.set(h.x, h.y + 1.0, h.z); cu.uCam.value.copy(G.cam.position); } Snd.tick(dt, AI.alarmT > 0);
   };
 
   /* ---------- quality ---------- */
