@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#7c3aed" />
+  <title>GROK HEIST CREW</title>
+  <link rel="stylesheet" href="style.css?v=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c3aed'/%3E%3Cellipse cx='32' cy='30' rx='24' ry='10' fill='%231f1a2e'/%3E%3Ccircle cx='22' cy='30' r='6' fill='%23fff'/%3E%3Ccircle cx='42' cy='30' r='6' fill='%23fff'/%3E%3Ccircle cx='23' cy='30' r='3' fill='%23111'/%3E%3Ccircle cx='43' cy='30' r='3' fill='%23111'/%3E%3Cpath d='M18 48h28l-4 8H22z' fill='%23ffd23f'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div id="pops"></div>
+  <div id="alarmFx"></div>
+
+  <div id="hud" class="hidden">
+    <div id="topbar">
+      <button id="bMenu" class="rbtn" type="button" aria-label="Pause">&#9208;</button>
+      <div id="objPill" class="pill obj"><span id="objT"></span></div>
+      <div class="pill" id="coinPill">🪙 <b id="coinN">0</b></div>
+    </div>
+    <div id="row2">
+      <div id="heat"><span class="hi">🔥</span><div id="heatBar"><div id="heatFill"></div></div><span id="heatT">HEAT</span></div>
+      <div class="pill sm" id="lootPill">💰 <b id="lootN">0</b></div>
+      <div class="pill sm" id="timePill">⏱️ <b id="timeN">0:00</b></div>
+    </div>
+    <canvas id="minimap" width="220" height="220"></canvas>
+    <button id="bRole" class="rolechip" type="button"><span id="roleI">💻</span><span id="roleN">HACKER</span><small>⇄ SWAP</small></button>
+    <div id="bigText"></div>
+    <div id="joy"><div id="joyBase"><div id="joyKnob"></div></div><div id="joyHint">MOVE</div></div>
+    <div id="pad">
+      <button id="bGadNext" class="sb tiny" type="button" aria-label="Next gadget">🔄</button>
+      <button id="bGadget" class="sb gad" type="button"><span id="gadI">🍌</span><b id="gadN">2</b></button>
+      <button id="bAbility" class="sb ab" type="button"><span id="abI">💻</span><small id="abL">HACK</small></button>
+      <button id="bAct" class="sb act" type="button"><small id="actL"></small></button>
+    </div>
+  </div>
+  <div id="hackUI" class="hidden">
+    <div class="hackcard">
+      <div class="hacktitle">💻 HACKING&hellip; <span id="hackStep"></span></div>
+      <canvas id="hackDial" width="240" height="240"></canvas>
+      <div class="hackhint">Tap <b>HACK!</b> when the arrow is in the <span class="g">green</span> zone</div>
+      <div class="row"><button id="bHackGo" class="btn green" type="button">HACK!</button><button id="bHackX" class="btn alt small" type="button">✖</button></div>
+    </div>
+  </div>
+  <div id="banner" class="hidden"></div>
+  <div id="caughtFx" class="hidden"><div class="gotcha">GOTCHA! 🚨</div><div class="gsub">Back to the checkpoint&hellip;</div></div>
+  <div id="toasts"></div>
+  <div id="pnl" class="screen top hidden"><div id="pnlCard" class="card"></div></div>
+  <div id="fade"></div>
+
+  <div id="scrTitle" class="screen">
+    <div class="card title">
+      <div class="logo"><span class="lg1">GROK</span><span class="lg2">HEIST</span><span class="lg3">CREW</span></div>
+      <div class="cars">💻🔭🤸💪</div>
+      <div class="row prof">
+        <input id="nameIn" maxlength="12" placeholder="Your name" autocomplete="off" />
+        <div id="colorRow" class="swatches"></div>
+      </div>
+      <div class="btncol">
+        <button id="bSolo" class="btn primary" type="button">PLAY</button>
+        <button id="bOnline" class="btn blue" type="button">PLAY WITH FRIENDS</button>
+        <button id="bHow" class="btn alt small" type="button">HOW TO PLAY</button>
+      </div>
+      <p class="foot">Plan silly heists with your crew! Sneak past guards, hack doors, flip over lasers and grab the treasure Baron Grumble stole.</p>
+    </div>
+  </div>
+
+  <div id="scrOnline" class="screen hidden">
+    <div class="card">
+      <h2>PLAY WITH FRIENDS</h2>
+      <p class="sub">2&ndash;3 players, each on their own phone. Everyone picks a different role and you pull off the heist together!</p>
+      <button id="bHost" class="btn primary" type="button">HOST A GAME</button>
+      <div class="or">or join a friend</div>
+      <div class="row join">
+        <input id="codeIn" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+        <button id="bJoin" class="btn blue" type="button">JOIN</button>
+      </div>
+      <div id="onlineMsg" class="msg"></div>
+      <button id="bOnlineBack" class="btn alt small" type="button">BACK</button>
+    </div>
+  </div>
+
+  <script src="three.min.js"></script>
+  <script src="peerjs.min.js"></script>
+  <script src="grok-net.js"></script>
+  <script src="js/util.js?v=1"></script>
+  <script src="js/levels.js?v=1"></script>
+  <script src="js/logic.js?v=1"></script>
+  <script src="js/models.js?v=1"></script>
+  <script src="js/props.js?v=1"></script>
+  <script src="js/build.js?v=1"></script>
+  <script src="js/audio.js?v=1"></script>
+  <script src="js/fx.js?v=1"></script>
+  <script src="js/ai.js?v=1"></script>
+  <script src="js/ui.js?v=1"></script>
+  <script src="js/net.js?v=1"></script>
+  <script src="js/game.js?v=1"></script>
+  <script>GH.G.init();</script>
+</body>
+</html>

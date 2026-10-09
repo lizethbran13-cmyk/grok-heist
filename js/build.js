@@ -1,0 +1,333 @@
+/* Grok Heist Crew - builds a level scene: floors, walls, doors, facades, roofs, decor, exteriors, sky + lights */
+(function () {
+  'use strict';
+  const GH = window.GH, U = GH.U, M = GH.M, D = GH.D, LG = GH.LG, PR = GH.PR, T = THREE;
+  const C = D.CELL, WH = D.WALL_H, RH = D.ROOF_H;
+  const wx = LG.wx;
+  const THEME = {
+    hideout: { facade: '#e07a52', trim: '#fff3e0', roof: '#56607a', base: '#8a3f2a', ext: 'park', win: 'square' },
+    candy: { facade: '#ff8fd0', trim: '#ffffff', roof: '#fff1f7', base: '#d9468f', ext: 'candy', gap: 'choco', win: 'round' },
+    museum: { facade: '#f2e9da', trim: '#d6c39c', roof: '#7287b8', base: '#b9a27e', ext: 'plaza', win: 'arch' },
+    ship: { facade: '#ffffff', trim: '#1e3a8a', roof: '#eef2f7', base: '#1e3a8a', ext: 'dock', gap: 'pool', win: 'porthole' },
+    castle: { facade: '#ece6ff', trim: '#ffd23f', roof: '#a593ff', base: '#c4b5fd', ext: 'clouds', gap: 'sky', win: 'arch' },
+    toys: { facade: '#ffcf33', trim: '#ef4444', roof: '#3b82f6', base: '#2563eb', ext: 'night', gap: 'balls', win: 'square' }
+  };
+  GH.THEME = THEME;
+  const SKIES = {
+    day: { top: '#2f8ff0', hor: '#c4ecff', sun: '#fff1d6', si: 1.35, hs: '#e3f4ff', hg: '#a6d98a', hi: 0.72, fog: '#cdeeff' },
+    sunset: { top: '#5560d6', hor: '#ffb78e', sun: '#ffd1a0', si: 1.25, hs: '#ffe2cf', hg: '#9aa47a', hi: 0.75, fog: '#f5c9b0' },
+    sky: { top: '#4f9dff', hor: '#ffe3f6', sun: '#fffaf0', si: 1.3, hs: '#ffffff', hg: '#eadcff', hi: 0.8, fog: '#f4e8ff' },
+    night: { top: '#121845', hor: '#4b4aa0', sun: '#c2ccff', si: 0.85, hs: '#b8c2ff', hg: '#5a4d8a', hi: 0.95, fog: '#2c2f6c' }
+  };
+  const DECOR = {
+    plan: { W: ['bookshelf', 'cabinet', 'plant', 'lockers'], H: ['chalkboard', 'poster', 'clock'] },
+    glab: { W: ['workbench', 'gadgetRack', 'crateStack', 'plant'], H: ['toolwall', 'poster', 'sconce'] },
+    lounge: { W: ['sofa', 'tv', 'arcade', 'plant', 'bookshelf'], H: ['poster', 'painting'], rug: 1 },
+    trophy: { W: ['plant'], H: ['banner', 'sconce'], rug: 1 },
+    garage: { W: ['tireStack', 'gasPump', 'workbench', 'crateStack', 'punchBag'], H: ['toolwall'] },
+    taffy: { W: ['taffy', 'candyVat', 'sacks', 'gumballMachine'], C: ['candyCane', 'lollipop', 'cupcake'], H: ['poster', 'pipes'] },
+    wrap: { W: ['wrapMachine', 'conveyor', 'sacks', 'crateStack'], C: ['conveyor', 'candyVat'], H: ['clock', 'poster'] },
+    vault: { W: ['gumballMachine', 'sacks', 'lollipop'], H: ['sconce'] },
+    storage: { W: ['crateStack', 'barrel', 'sacks', 'cabinet'], C: ['crateStack', 'barrel'], H: ['pipes'] },
+    river: { W: ['lollipop', 'candyCane', 'cupcake', 'plant'], H: ['sconce', 'poster'] },
+    office: { W: ['desk', 'bookshelf', 'cabinet', 'plant', 'cooler'], C: ['table'], H: ['painting', 'clock'] },
+    lobby: { W: ['sofa', 'plant', 'gumballMachine', 'lollipop'], H: ['painting', 'poster'], rug: 1 },
+    security: { W: ['monitorDesk', 'cabinet', 'cooler', 'lockers'], H: ['clock', 'poster'] },
+    gems: { W: ['pedestal', 'ropePosts', 'pedestal'], H: ['painting', 'sconce'] },
+    space: { W: ['planet', 'rocket', 'pedestal'], C: ['planet'], H: ['poster'] },
+    dino: { W: ['pedestal', 'plant', 'bench'], H: ['painting', 'banner'] },
+    art: { W: ['bench', 'pedestal', 'plant'], H: ['painting'] },
+    entrance: { W: ['plant', 'bench', 'column'], C: ['column'], H: ['banner', 'painting'], rug: 1 },
+    egypt: { W: ['sarcophagus', 'pyramid', 'pedestal'], C: ['pyramid'], H: ['banner', 'sconce'] },
+    buffet: { W: ['buffet', 'plant'], C: ['table'], H: ['painting', 'porthole'] },
+    deck: { W: ['deckChair', 'umbrella', 'deckChair', 'palm'], H: ['lifebuoy'] },
+    captain: { W: ['bookshelf', 'helm', 'plant', 'cabinet'], C: ['mapTable'], H: ['porthole', 'painting'], rug: 1 },
+    cabin: { W: ['bed', 'plant', 'cabinet'], H: ['porthole', 'painting'] },
+    hall: { W: ['plant'], H: ['porthole', 'painting', 'sconce'] },
+    atrium: { W: ['piano', 'plant', 'sofa', 'bench'], C: ['plant'], H: ['painting', 'sconce'], rug: 1 },
+    engine: { W: ['boiler', 'barrel', 'crateStack'], C: ['boiler'], H: ['pipes'] },
+    treasury: { W: ['sacks', 'pedestal', 'armor'], H: ['banner', 'sconce'] },
+    tower: { W: ['armor', 'bookshelf', 'plant', 'cauldron'], H: ['banner', 'sconce'] },
+    ghall: { W: ['pillar', 'armor', 'throne', 'pillar'], H: ['banner', 'sconce'], rug: 1 },
+    library: { W: ['bookshelf', 'bookshelf', 'readTable'], C: ['readTable'], H: ['sconce'] },
+    court: { W: ['cloudBush', 'bench', 'pillar'], C: ['cloudBush'] },
+    kitchen: { W: ['oven', 'cauldron', 'buffet', 'barrel'], C: ['table'], H: ['pipes', 'clock'] },
+    stock: { W: ['crateStack', 'toyShelf', 'gifts'], H: ['poster'] },
+    lab: { W: ['workbench', 'robotDisplay', 'cabinet'], H: ['poster', 'chalkboard'] },
+    plush: { W: ['plushPile', 'toyShelf', 'horse'], C: ['plushPile'], H: ['poster'] },
+    blocks: { W: ['toyShelf', 'trainTable', 'gifts'], C: ['trainTable'], H: ['poster'] },
+    games: { W: ['arcade', 'arcade', 'toyShelf'], C: ['arcade'], H: ['poster'] },
+    giftwrap: { W: ['gifts', 'gifts', 'crateStack'], H: ['poster'] },
+    showroom: { W: ['toyShelf', 'robotDisplay', 'plushPile', 'ballBin', 'horse', 'gifts'], C: ['robotDisplay', 'ballBin', 'trainTable'], H: ['poster', 'clock'] }
+  };
+  const FLOOR = { tile: ['taffy', 'wrap', 'river', 'lobby', 'entrance', 'art', 'atrium', 'kitchen', 'showroom', 'lab', 'glab', 'vault', 'egypt', 'space', 'security', 'court', 'ghall', 'treasury'], wood: ['storage', 'office', 'buffet', 'deck', 'cabin', 'captain', 'library', 'plan', 'lounge', 'blocks', 'plush', 'tower', 'stock', 'dino', 'giftwrap', 'garage'], carpet: ['hall', 'games', 'trophy', 'gems', 'engine'] };
+  const floorStyle = (k) => FLOOR.wood.includes(k) ? 'wood' : FLOOR.carpet.includes(k) ? 'carpet' : 'tile';
+  const pale = (c, k) => { const a = new T.Color(c), b = new T.Color('#ffffff'); a.lerp(b, k); return '#' + a.getHexString(); };
+
+  GH.Build = function (def, opt) {
+    opt = opt || {}; const low = !!opt.low; M.low = low;
+    const P = LG.parse(def), th = THEME[def.id] || THEME.hideout;
+    const scene = new T.Scene();
+    const S = new M.B(), Rf = new M.B(), FL = new M.B(); // static, roof (hidden inside), floors
+    const L = { def, P, scene, th, low, dyn: { locks: [], lasers: [], cams: [], crates: [], secret: [], levers: [], loot: {}, target: null, vehicle: null, sky: [], roofPts: [] }, anim: [] };
+    const W = P.W, H = P.H;
+    const ch = (x, z) => (x < 0 || z < 0 || x >= W || z >= H) ? 'O' : P.ch[z][x];
+    const isWall = (x, z) => ch(x, z) === '#';
+    const isOut = (x, z) => { const c = ch(x, z); return c === ' ' || c === 'w' || c === 'O'; };
+    const roomOf = (x, z) => { let r = P.room[z] && P.room[z][x]; if (r >= 0) return P.rooms[r]; for (const [dx, dz] of LG.N4) { const q = P.room[z + dz] && P.room[z + dz][x + dx]; if (q >= 0) return P.rooms[q]; } return null; };
+    const rnd = (a, b) => U.hash(a * 31 + 7, b * 17 + def.id.length);
+
+    /* ---------- environment ---------- */
+    const sk = SKIES[def.sky] || SKIES.day; L.sky = sk;
+    scene.background = new T.Color(sk.hor); scene.fog = new T.Fog(sk.fog, low ? 60 : 80, low ? 170 : 230);
+    const dome = new T.Mesh(new T.SphereGeometry(400, 24, 12), new T.ShaderMaterial({ side: T.BackSide, depthWrite: false, fog: false, uniforms: { top: { value: new T.Color(sk.top) }, hor: { value: new T.Color(sk.hor) } },
+      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 hor; varying vec3 vD; void main(){ float h = max(vD.y, 0.0); gl_FragColor = vec4(mix(hor, top, pow(h, 0.6)), 1.0); }' }));
+    dome.renderOrder = -10; scene.add(dome); L.dome = dome;
+    const hemi = new T.HemisphereLight(sk.hs, sk.hg, sk.hi); scene.add(hemi);
+    const sun = new T.DirectionalLight(sk.sun, sk.si); sun.position.set(30, 50, 22); scene.add(sun); scene.add(sun.target); L.sun = sun; L.sunOff = new T.Vector3(18, 34, 14);
+    sun.castShadow = !low; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 120; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
+    const fill = new T.DirectionalLight(def.sky === 'night' ? '#ff9ae8' : '#ffffff', def.sky === 'night' ? 0.35 : 0.22); fill.position.set(-20, 18, -30); scene.add(fill);
+    if (def.sky === 'night') { // stars + moon
+      const n = 600, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, e = 0.15 + Math.random() * 1.3; pos[i * 3] = Math.cos(a) * Math.cos(e) * 380; pos[i * 3 + 1] = Math.sin(e) * 380; pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * 380; }
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); scene.add(new T.Points(g, new T.PointsMaterial({ color: '#ffffff', size: 2.2, sizeAttenuation: false, fog: false })));
+      const moon = new T.Mesh(new T.SphereGeometry(18, 20, 14), new T.MeshBasicMaterial({ color: '#fff7d6', fog: false })); moon.position.set(-150, 170, -260); scene.add(moon);
+    }
+    // sky clouds (real 3D puffs)
+    const cb = new M.B(); for (let i = 0; i < (low ? 6 : 12); i++) { const a = i / 12 * Math.PI * 2 + rnd(i, 1), r = 180 + rnd(i, 2) * 80, y = 60 + rnd(i, 3) * 50; for (let k = 0; k < 5; k++) cb.sph(9 + (k % 3) * 4, '#ffffff', Math.cos(a) * r + (k - 2) * 9, y + (k % 2) * 4, Math.sin(a) * r + Math.sin(k) * 5, 1, 0.6, 0.9, 0, 0, 0, null, 10, 7); }
+    const cm = new T.Mesh(cb.geometry(), new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: def.sky === 'night' ? '#3b3f80' : '#ffffff', emissiveIntensity: def.sky === 'night' ? 0.3 : 0.45, fog: false })); scene.add(cm);
+
+    /* ---------- ground ---------- */
+    const cxm = W * C / 2, czm = H * C / 2;
+    if (def.water) { const wm = new T.Mesh(new T.PlaneGeometry(900, 900, 1, 1), M.MAT.water); wm.rotation.x = -Math.PI / 2; wm.position.set(cxm, -0.55, czm); wm.receiveShadow = true; scene.add(wm); L.water = wm;
+      const sb = new T.Mesh(new T.PlaneGeometry(900, 900), new T.MeshStandardMaterial({ color: '#0e7fb8', roughness: 1 })); sb.rotation.x = -Math.PI / 2; sb.position.set(cxm, -3, czm); scene.add(sb); }
+    else if (def.clouds) { const g = new M.B(); for (let i = 0; i < (low ? 40 : 90); i++) { const a = rnd(i, 5) * Math.PI * 2, r = 30 + rnd(i, 6) * 150; g.sph(6 + rnd(i, 7) * 8, i % 3 ? '#ffffff' : '#f5ecff', cxm + Math.cos(a) * r, -5 - rnd(i, 8) * 3, czm + Math.sin(a) * r, 1, 0.45, 1, 0, 0, 0, null, 10, 7); }
+      const m = new T.Mesh(g.geometry(), new T.MeshStandardMaterial({ vertexColors: true, roughness: 1, emissive: '#ffffff', emissiveIntensity: 0.25 })); scene.add(m);
+      const base = new T.Mesh(new T.PlaneGeometry(900, 900), new T.MeshStandardMaterial({ color: '#f2e9ff', roughness: 1, emissive: '#ffffff', emissiveIntensity: 0.15 })); base.rotation.x = -Math.PI / 2; base.position.set(cxm, -6, czm); scene.add(base); }
+    else { const gm = new T.Mesh(new T.PlaneGeometry(900, 900), new T.MeshStandardMaterial({ color: def.ground || '#7cd36b', roughness: 0.95 })); gm.rotation.x = -Math.PI / 2; gm.position.set(cxm, -0.12, czm); gm.receiveShadow = true; scene.add(gm); }
+
+    /* ---------- floors ---------- */
+    const tileGeo = (w, d, h) => low ? new T.BoxGeometry(w, h, d) : U.rbox(w, h, d, Math.min(0.05, h / 2 - 0.01), 1);
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const c = P.ch[z][x], X = wx(x), Z = wx(z);
+      if (c === '#' || c === '~' || c === 'w' || c === 'G' || c === '=') { if (c === 'G' || c === '=') { const r = roomOf(x, z); if (r) FL.geo(tileGeo(1.96, 1.96, 0.14), r.floor, X, -0.07, Z); } continue; }
+      if (c === ' ') { // exterior paving
+        if (def.water) { for (let k = 0; k < 4; k++) FL.geo(tileGeo(1.96, 0.46, 0.16), (x + k) % 3 ? '#c99a62' : '#b98a52', X, -0.08, Z - 0.75 + k * 0.5); if ((x + z) % 3 === 0) FL.cyl(0.18, 0.18, 1.2, '#8a5a32', X, -0.6, Z); }
+        else { const street = def.street || '#e7dccb'; const k = (x + z) % 2 ? 0 : 0.04; FL.geo(tileGeo(1.94, 1.94, 0.14), M.shift(street, 0, 0, k), X, -0.07, Z); }
+        continue;
+      }
+      const r = roomOf(x, z); if (!r) continue; const st = floorStyle(r.kind);
+      if (st === 'tile') FL.geo(tileGeo(1.94, 1.94, 0.14), (x + z) % 2 ? r.floor : M.shift(r.floor, 0, 0.04, -0.07), X, -0.07, Z);
+      else if (st === 'wood') { for (let k = 0; k < 3; k++) FL.geo(tileGeo(1.98, 0.62, 0.14), M.shift(r.floor, 0, 0, ((x * 3 + k + z) % 4) * 0.025 - 0.03), X, -0.07, Z - 0.66 + k * 0.66); }
+      else FL.geo(new T.BoxGeometry(2.0, 0.14, 2.0), r.floor, X, -0.07, Z);
+    }
+    // grout / sub-floor under building
+    { const [x0, z0, x1, z1] = P.bbox; S.box((x1 - x0 + 1) * C, 0.1, (z1 - z0 + 1) * C, 0.04, '#5b4b5f', (x0 + x1 + 1) * C / 2, -0.16, (z0 + z1 + 1) * C / 2); }
+
+    /* ---------- walls ---------- */
+    const used = {}; const runs = [];
+    for (let z = 0; z < H; z++) { let x = 0; while (x < W) { if (isWall(x, z)) { let e = x; while (e + 1 < W && isWall(e + 1, z)) e++; if (e > x) { runs.push([x, z, e, z]); for (let k = x; k <= e; k++) used[k + ',' + z] = 1; } x = e + 1; } else x++; } }
+    for (let x = 0; x < W; x++) { let z = 0; while (z < H) { if (isWall(x, z) && !used[x + ',' + z]) { let e = z; while (e + 1 < H && isWall(x, e + 1) && !used[x + ',' + (e + 1)]) e++; runs.push([x, z, x, e]); for (let k = z; k <= e; k++) used[x + ',' + k] = 1; z = e + 1; } else z++; } }
+    runs.forEach(([x0, z0, x1, z1]) => { const w = (x1 - x0 + 1) * C, d = (z1 - z0 + 1) * C, cx = (x0 + x1 + 1) * C / 2, cz = (z0 + z1 + 1) * C / 2;
+      S.box(w, WH, d, 0.1, th.facade, cx, WH / 2, cz); S.box(w + 0.12, 0.24, d + 0.12, 0.1, th.trim, cx, WH + 0.1, cz); });
+    // per-face panels (interior: room colours; exterior: facade details)
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const panel = (b, X, Z, dx, dz, w, h, y, t, col, out) => { // panel on face of cell (X,Z) toward dir; out = offset from face
+      const fx = X + dx * (C / 2 - out), fz = Z + dz * (C / 2 - out); if (dx) b.geo(new T.BoxGeometry(t, h, w), col, fx, y, fz); else b.geo(new T.BoxGeometry(w, h, t), col, fx, y, fz); };
+    let winN = 0;
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const c = P.ch[z][x]; const X = wx(x), Z = wx(z);
+      const floorish = !(c === '#' || c === ' ' || c === 'w' || c === '~');
+      if (floorish && P.room[z][x] >= 0) { const r = P.rooms[P.room[z][x]];
+        DIRS.forEach(([dx, dz]) => { if (!isWall(x + dx, z + dz)) return; const up = pale(r.wall, 0.62), wa = r.wall;
+          panel(S, X, Z, dx, dz, 2.0, WH - 1.15, 1.15 + (WH - 1.15) / 2, 0.06, up, -0.03); panel(S, X, Z, dx, dz, 2.0, 1.0, 0.6, 0.09, wa, -0.045);
+          panel(S, X, Z, dx, dz, 2.0, 0.1, 1.13, 0.14, '#ffffff', -0.07); panel(S, X, Z, dx, dz, 2.0, 0.16, 0.08, 0.13, M.darker(wa, 0.18), -0.065);
+          panel(S, X, Z, dx, dz, 2.0, 0.14, WH - 0.07, 0.12, '#ffffff', -0.06); }); }
+      if (c === '#') { // exterior faces
+        DIRS.forEach(([dx, dz]) => { const n = ch(x + dx, z + dz); if (!(n === ' ' || n === 'w' || n === 'O')) return;
+          const fx = X + dx * C / 2, fz = Z + dz * C / 2, rot = Math.atan2(dx, dz); const a = PR.at(S, fx, fz, rot);
+          a.box(2.02, 0.7, 0.16, 0.05, th.base, 0, 0.35, 0.02); a.box(2.02, 0.2, 0.2, 0.06, th.trim, 0, WH - 0.35, 0.04);
+          const nearDoor = [-1, 1].some((s) => { const q = ch(x + (dz ? s : 0), z + (dx ? s : 0)); return q === 'D' || q === 'L'; }) || P.roofPts.some((p) => p.x === x + dx && p.z === z + dz);
+          if (!nearDoor && (x + z) % 2 === 0) { winN++;
+            if (th.win === 'round' || th.win === 'porthole') { a.tor(0.48, 0.1, th.win === 'porthole' ? '#c9962e' : th.trim, 0, 2.0, 0.06, 0, 0, 0, 'gloss'); a.cyl(0.46, 0.46, 0.08, '#8fd8ff', 0, 2.0, 0.02, Math.PI / 2, 0, 0, 'gloss'); }
+            else if (th.win === 'arch') { a.box(1.1, 1.5, 0.12, 0.05, th.trim, 0, 1.85, 0.04); a.cyl(0.55, 0.55, 0.12, th.trim, 0, 2.6, 0.04, Math.PI / 2, 0, 0); a.box(0.9, 1.4, 0.06, 0.03, '#8fd8ff', 0, 1.85, 0.08, 0, 0, 0, 'gloss'); a.cyl(0.45, 0.45, 0.06, '#8fd8ff', 0, 2.55, 0.08, Math.PI / 2, 0, 0, 'gloss'); a.box(1.2, 0.1, 0.25, 0.04, th.trim, 0, 1.12, 0.1); }
+            else { a.box(1.2, 1.3, 0.12, 0.06, th.trim, 0, 2.0, 0.04); a.box(1.0, 1.1, 0.06, 0.03, def.sky === 'night' ? '#ffe9a0' : '#8fd8ff', 0, 2.0, 0.08, 0, 0, 0, def.sky === 'night' ? 'glow' : 'gloss'); a.box(0.06, 1.1, 0.08, 0.02, th.trim, 0, 2.0, 0.1); a.box(1.3, 0.1, 0.25, 0.04, th.trim, 0, 1.32, 0.1); }
+          }
+          if (def.id === 'candy') { a.box(2.02, 0.22, 0.12, 0.05, (x + z) % 2 ? '#ffffff' : '#ff4f9a', 0, 3.0, 0.08); for (let k = 0; k < 3; k++) a.sph(0.16 + (k % 2) * 0.06, '#ffffff', -0.7 + k * 0.7, 3.42, 0.12, 1, 1.4 - (k % 2) * 0.3, 0.8); }
+          if (def.id === 'ship') a.box(2.02, 0.35, 0.1, 0.03, '#ef4444', 0, 2.95, 0.06);
+          if (def.id === 'toys') a.box(0.5, 0.5, 0.1, 0.1, ['#ef4444', '#22c55e', '#3b82f6', '#ff4fd8'][(x + z) % 4], 0.6, 3.0, 0.06, 0, 0, 0, 'gloss');
+        }); }
+    }
+
+    /* ---------- openings ---------- */
+    const axisAt = (x, z) => (isWall(x - 1, z) || ch(x - 1, z) === 'L' || ch(x - 1, z) === 'S' || ch(x - 1, z) === 'Z' || ch(x - 1, z) === 'D') && (isWall(x + 1, z) || ch(x + 1, z) === 'L' || ch(x + 1, z) === 'S' || ch(x + 1, z) === 'Z' || ch(x + 1, z) === 'D') ? 'x' : 'z';
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) {
+      const c = P.ch[z][x], X = wx(x), Z = wx(z);
+      const inWallLine = (isWall(x - 1, z) && isWall(x + 1, z)) || (isWall(x, z - 1) && isWall(x, z + 1)) || ((c === 'D' || c === 'L' || c === 'Z' || c === 'S') && ((isWall(x - 1, z) || isWall(x + 1, z)) && (ch(x - 1, z) !== '.' || ch(x + 1, z) !== '.')));
+      if ((c === 'D' || c === 'L' || (c === 'Z' && inWallLine)) && inWallLine) {
+        const ax = axisAt(x, z); const rot = ax === 'x' ? 0 : Math.PI / 2; const a = PR.at(S, X, Z, rot);
+        a.box(2.0, WH - 2.8, 1.96, 0.06, th.facade, 0, 2.8 + (WH - 2.8) / 2, 0); a.box(2.04, 0.18, 2.04, 0.06, th.trim, 0, 2.86, 0);
+        [-1, 1].forEach((s) => { if (ch(x + (ax === 'x' ? s : 0), z + (ax === 'x' ? 0 : s)) === '#') a.box(0.2, 2.8, 2.04, 0.08, c === 'L' ? '#475569' : th.trim, s * 0.92, 1.4, 0); });
+        const outside = (ax === 'x') ? [isOut(x, z - 1), isOut(x, z + 1)] : [isOut(x - 1, z), isOut(x + 1, z)];
+        outside.forEach((o, i) => { if (!o) return; const s = i ? 1 : -1; // awning
+          const aw = PR.at(S, X + (ax === 'x' ? 0 : s * 1.3), Z + (ax === 'x' ? s * 1.3 : 0), ax === 'x' ? (s > 0 ? 0 : Math.PI) : (s > 0 ? Math.PI / 2 : -Math.PI / 2));
+          for (let k = 0; k < 4; k++) aw.box(0.55, 0.12, 1.2, 0.05, k % 2 ? '#ffffff' : th.base, -0.82 + k * 0.55, 3.15, 0.1, -0.35); aw.box(2.0, 0.06, 1.0, 0.03, '#e5d3b3', 0, 0.01, 0.4); });
+      }
+      if (c === 'G') {
+        const pane = (isWall(x - 1, z) || ch(x - 1, z) === 'G') && (isWall(x + 1, z) || ch(x + 1, z) === 'G') || (isWall(x, z - 1) || ch(x, z - 1) === 'G') && (isWall(x, z + 1) || ch(x, z + 1) === 'G');
+        if (pane) { const ax = (isWall(x - 1, z) || ch(x - 1, z) === 'G') ? 0 : Math.PI / 2; const a = PR.at(S, X, Z, ax); a.box(2.0, 0.5, 0.5, 0.1, th.trim, 0, 0.25, 0); a.box(2.0, 0.2, 0.4, 0.08, th.trim, 0, WH - 0.1, 0); const gm = new T.Mesh(new T.BoxGeometry(ax ? 0.08 : 2, WH - 0.7, ax ? 2 : 0.08), M.MAT.glass); gm.position.set(X, 0.5 + (WH - 0.7) / 2, Z); scene.add(gm); }
+        else { S.box(1.7, 0.9, 1.7, 0.1, '#f5f0e6', X, 0.45, Z); S.box(1.8, 0.08, 1.8, 0.03, '#d6c39c', X, 0.92, Z); const gm = new T.Mesh(U.rbox(1.6, 1.1, 1.6, 0.08, 2), M.MAT.glass); gm.position.set(X, 1.5, Z); scene.add(gm);
+          const k = (x * 7 + z) % 3; if (k === 0) S.add(new T.OctahedronGeometry(0.3, 0), '#ff4fd8', 'glow', X, 1.4, Z, 0, 0, 0, 1, 1.3, 1); else if (k === 1) S.sph(0.3, '#22d3ee', X, 1.35, Z, 1, 1, 1, 0, 0, 0, 'glow'); else S.box(0.5, 0.4, 0.3, 0.12, '#ffd23f', X, 1.2, Z, 0, 0.5, 0, 'gloss'); }
+      }
+      if (c === '=') { const r = roomOf(x, z); const col = r ? r.wall : th.trim; S.box(1.98, 1.0, 1.4, 0.15, col, X, 0.5, Z); S.box(2.0, 0.12, 1.6, 0.06, pale(col, 0.7), X, 1.04, Z); S.box(1.9, 0.5, 0.06, 0.04, M.darker(col, 0.1), X, 0.5, Z + 0.71); if ((x + z) % 3 === 0) { S.box(0.5, 0.3, 0.4, 0.05, '#1f2937', X, 1.25, Z); S.box(0.4, 0.2, 0.02, 0.02, '#22d3ee', X, 1.27, Z + 0.21, 0, 0, 0, 'glow'); } else S.sph(0.18, '#ff4fd8', X, 1.25, Z, 1, 1, 1, 0, 0, 0, 'gloss'); }
+      if (c === '~') buildGap(x, z, X, Z);
+    }
+    function buildGap(x, z, X, Z) {
+      const g = th.gap || 'choco', depth = g === 'sky' ? 5 : g === 'balls' ? 1.2 : 1.0;
+      DIRS.forEach(([dx, dz]) => { if (ch(x + dx, z + dz) === '~') return; const fx = X + dx * 0.98, fz = Z + dz * 0.98; const col = g === 'pool' ? '#e0f2fe' : g === 'sky' ? '#c4b5fd' : g === 'balls' ? '#2563eb' : '#c2185b';
+        if (dx) S.geo(new T.BoxGeometry(0.12, depth, 2.0), col, fx, -depth / 2, fz); else S.geo(new T.BoxGeometry(2.0, depth, 0.12), col, fx, -depth / 2, fz);
+        const rim = g === 'pool' ? '#ffffff' : g === 'sky' ? '#ffd23f' : g === 'balls' ? '#ffd23f' : '#ff9ad5'; if (dx) S.box(0.3, 0.2, 2.0, 0.08, rim, X + dx * 0.9, 0.06, Z); else S.box(2.0, 0.2, 0.3, 0.08, rim, X, 0.06, Z + dz * 0.9); });
+      if (g === 'choco') { const m = new T.Mesh(new T.BoxGeometry(2, 0.1, 2), M.MAT.choco); m.position.set(X, -0.55, Z); scene.add(m); if (rnd(x, z) < 0.3) S.box(0.4, 0.3, 0.4, 0.12, '#ffffff', X + 0.3, -0.42, Z - 0.2, 0, rnd(z, x) * 3, 0); }
+      else if (g === 'pool') { S.geo(new T.BoxGeometry(2, 0.1, 2), (x + z) % 2 ? '#38bdf8' : '#7dd3fc', X, -1.0, Z); const m = new T.Mesh(new T.BoxGeometry(2, 0.08, 2), M.MAT.water); m.position.set(X, -0.3, Z); scene.add(m); }
+      else if (g === 'sky') { if (rnd(x, z) < 0.4) S.sph(1.2, '#ffffff', X, -4.5, Z, 1, 0.5, 1); S.geo(new T.BoxGeometry(2, 0.1, 2), '#dbeafe', X, -5.2, Z); }
+      else { for (let k = 0; k < (low ? 5 : 10); k++) S.sph(0.24, PR.F && ['#ef4444', '#22d3ee', '#ffd23f', '#4ade80', '#ff4fd8', '#a78bfa'][(x + z + k) % 6], X - 0.7 + rnd(x + k, z) * 1.4, -0.25 - (k % 2) * 0.2, Z - 0.7 + rnd(z + k, x) * 1.4, 1, 1, 1, 0, 0, 0, 'gloss', 10, 8); }
+    }
+
+    /* ---------- lasers ---------- */
+    P.lasers.forEach((gr) => { const g = new T.Group(); scene.add(g); const posts = new M.B();
+      gr.cells.forEach(([x, z]) => { const X = wx(x), Z = wx(z); const ax = axisAt(x, z);
+        [0.45, 0.95, 1.45].forEach((y) => { const beam = new T.Mesh(new T.CylinderGeometry(0.035, 0.035, 2.0, 6), M.MAT.laser); const glow = new T.Mesh(new T.CylinderGeometry(0.12, 0.12, 2.0, 8), M.MAT.laserGlow); [beam, glow].forEach((m) => { m.position.set(X, y, Z); if (ax === 'x') m.rotation.z = Math.PI / 2; else m.rotation.x = Math.PI / 2; g.add(m); }); });
+        [-1, 1].forEach((s) => { const nx = x + (ax === 'x' ? s : 0), nz = z + (ax === 'x' ? 0 : s); if (ch(nx, nz) === 'Z') return; const px = X + (ax === 'x' ? s * 0.95 : 0), pz = Z + (ax === 'x' ? 0 : s * 0.95);
+          posts.box(0.26, 1.75, 0.26, 0.08, '#334155', px, 0.88, pz); posts.sph(0.1, '#ff2a4a', px - (ax === 'x' ? s * 0.13 : 0), 0.95, pz - (ax === 'x' ? 0 : s * 0.13), 1, 1, 1, 0, 0, 0, 'glow'); posts.cyl(0.18, 0.18, 0.1, '#ffd23f', px, 1.8, pz, 0, 0, 0, 'gloss'); });
+      });
+      const pg = posts.group(true); scene.add(pg);
+      L.dyn.lasers[gr.id] = { g, gr }; });
+
+    /* ---------- locks (vault doors) ---------- */
+    P.locks.forEach((lk) => { const xs = lk.cells.map((c) => c[0]), zs = lk.cells.map((c) => c[1]); const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      const cx = (x0 + x1 + 1) * C / 2, cz = (z0 + z1 + 1) * C / 2, ax = axisAt(x0, z0), w = ax === 'x' ? (x1 - x0 + 1) * C : (z1 - z0 + 1) * C;
+      const g = new T.Group(); g.position.set(cx, 0, cz); g.rotation.y = ax === 'x' ? 0 : Math.PI / 2; scene.add(g); const b = new M.B();
+      b.box(w - 0.1, 2.75, 0.36, 0.14, '#94a3b8', 0, 1.4, 0, 0, 0, 0, 'gloss'); for (let k = 0; k < 4; k++) b.box(w - 0.3, 0.16, 0.4, 0.05, k % 2 ? '#1f2937' : '#ffd23f', 0, 0.3 + k * 0.18, 0);
+      b.tor(0.5, 0.09, '#ffd23f', 0, 1.7, 0.22, 0, 0, 0, 'gloss'); b.tor(0.5, 0.09, '#ffd23f', 0, 1.7, -0.22, 0, 0, 0, 'gloss'); for (let k = 0; k < 3; k++) { b.cyl(0.05, 0.05, 1.0, '#ffd23f', 0, 1.7, 0.22, 0, 0, k * Math.PI / 3, 'gloss'); b.cyl(0.05, 0.05, 1.0, '#ffd23f', 0, 1.7, -0.22, 0, 0, k * Math.PI / 3, 'gloss'); }
+      b.cyl(0.15, 0.15, 0.5, '#64748b', 0, 1.7, 0, Math.PI / 2, 0, 0, 'gloss'); const leaf = new T.Group(); g.add(leaf); b.meshes(true).forEach((m) => leaf.add(m));
+      const light = new T.Mesh(new T.SphereGeometry(0.13, 12, 8), new T.MeshBasicMaterial({ color: '#ff3b3b' })); light.position.set(w / 2 + 0.25, 1.5, 0.95); g.add(light);
+      const light2 = light.clone(); light2.material = light.material; light2.position.set(-w / 2 - 0.25, 1.5, -0.95); g.add(light2);
+      const kp = new M.B(); [0.95, -0.95].forEach((s) => { kp.box(0.36, 0.55, 0.08, 0.04, '#1f2937', (s > 0 ? 1 : -1) * (w / 2 + 0.25), 1.35, s); }); kp.meshes(false).forEach((m) => g.add(m));
+      L.dyn.locks[lk.id] = { g, leaf, light, lk, open: 0 }; });
+
+    /* ---------- secret walls ---------- */
+    P.secret.forEach((s) => { const X = wx(s.x), Z = wx(s.z); const ax = axisAt(s.x, s.z); const g = new T.Group(); g.position.set(X, 0, Z); g.rotation.y = ax === 'x' ? 0 : Math.PI / 2; scene.add(g); const b = new M.B();
+      b.box(2.0, WH, 1.9, 0.06, th.facade, 0, WH / 2, 0); [1, -1].forEach((side) => { const a = PR.at(b, 0, side * 0.95, side > 0 ? 0 : Math.PI); a.box(1.9, 3.3, 0.12, 0.05, '#8a5a32', 0, 1.65, 0.05); for (let r = 0; r < 4; r++) { a.box(1.75, 0.06, 0.2, 0.02, '#6b4423', 0, 0.4 + r * 0.75, 0.15); for (let k = 0; k < 7; k++) { const h = 0.4 + ((r * 7 + k) % 3) * 0.08; a.box(0.18, h, 0.22, 0.03, ['#ef4444', '#3b82f6', '#22c55e', '#ffd23f', '#a855f7'][(r + k + s.x) % 5], -0.7 + k * 0.23, 0.43 + r * 0.75 + h / 2, 0.2); } } });
+      b.meshes(true).forEach((m) => g.add(m)); L.dyn.secret.push({ g, s, t: 0 }); });
+
+    /* ---------- vents, levers, cameras, crates, skylights, grapple points ---------- */
+    const wallDir = (x, z) => { for (const [dx, dz] of DIRS) if (isWall(x + dx, z + dz)) return [dx, dz]; return [0, -1]; };
+    P.vents.forEach((v) => [v.a, v.b].forEach((e) => { const [dx, dz] = wallDir(e[0], e[1]); const a = PR.at(S, wx(e[0]) + dx * 0.98, wx(e[1]) + dz * 0.98, Math.atan2(-dx, -dz));
+      a.box(1.3, 0.95, 0.14, 0.08, '#64748b', 0, 0.55, 0.04); for (let k = 0; k < 4; k++) a.box(1.05, 0.08, 0.16, 0.03, '#1f2937', 0, 0.25 + k * 0.2, 0.06); a.box(1.36, 0.08, 0.18, 0.04, '#22d3ee', 0, 1.06, 0.06, 0, 0, 0, 'glow'); a.box(1.36, 0.08, 0.18, 0.04, '#22d3ee', 0, 0.04, 0.06, 0, 0, 0, 'glow'); }));
+    P.levers.forEach((l) => { const [dx, dz] = wallDir(l.x, l.z); const X = wx(l.x) + dx * 0.95, Z = wx(l.z) + dz * 0.95, rot = Math.atan2(-dx, -dz); const a = PR.at(S, X, Z, rot);
+      a.box(0.5, 0.8, 0.1, 0.05, '#8a5a32', 0, 1.3, 0.05); a.sph(0.1, '#c9962e', 0, 1.3, 0.12, 1, 1, 1, 'gloss');
+      const hp = new T.Group(); hp.position.set(X + Math.sin(rot) * 0.15, 1.3, Z + Math.cos(rot) * 0.15); hp.rotation.y = rot; scene.add(hp); const hb = new M.B(); hb.cyl(0.04, 0.04, 0.6, '#c9962e', 0, 0.3, 0, 0, 0, 0, 'gloss'); hb.sph(0.11, '#ef4444', 0, 0.62, 0, 1, 1, 1, 0, 0, 0, 'gloss'); hb.meshes(true).forEach((m) => hp.add(m)); hp.rotation.x = -0.5; hp.rotation.order = 'YXZ';
+      L.dyn.levers.push({ g: hp, l, rot }); });
+    P.cams.forEach((cm) => { const X = wx(cm.x) + cm.wall[0] * 0.85, Z = wx(cm.z) + cm.wall[1] * 0.85; const g = new T.Group(); g.position.set(X, 3.0, Z); scene.add(g);
+      const b = new M.B(); b.box(0.3, 0.3, 0.3, 0.08, '#cbd5e1', 0, 0, 0); b.cyl(0.04, 0.04, 0.4, '#94a3b8', 0, -0.1, 0); b.meshes(false).forEach((m) => g.add(m));
+      const head = new T.Group(); head.position.y = -0.25; g.add(head); const hb = new M.B(); hb.cap(0.17, 0.4, '#f1f5f9', 0, 0, 0.2, Math.PI / 2, 0, 0, 'gloss'); hb.cyl(0.12, 0.12, 0.05, '#1f2937', 0, 0, 0.6, Math.PI / 2, 0, 0); hb.meshes(false).forEach((m) => head.add(m));
+      const led = new T.Mesh(new T.SphereGeometry(0.05, 8, 6), new T.MeshBasicMaterial({ color: '#ff3b3b' })); led.position.set(0.12, 0.12, 0.3); head.add(led);
+      L.dyn.cams[cm.id] = { g, head, led, cm, X, Z }; });
+    P.crates.forEach((cr) => { const g = new T.Group(); const b = new M.B(); b.box(1.85, 1.75, 1.85, 0.18, '#b7793e', 0, 0.88, 0); for (const s of [-1, 1]) { b.box(1.9, 0.18, 0.2, 0.05, '#7c4a1e', 0, 0.88, s * 0.86); b.box(0.2, 0.18, 1.9, 0.05, '#7c4a1e', s * 0.86, 0.88, 0); b.box(1.9, 0.16, 1.9, 0.05, '#7c4a1e', 0, s > 0 ? 1.68 : 0.1, 0); }
+      b.box(0.9, 0.55, 0.05, 0.05, '#ffd23f', 0, 0.9, 0.95, 0, 0, 0, 'gloss'); b.sph(0.12, '#1f2937', 0, 0.95, 0.98, 1, 1, 0.3); b.box(0.9, 0.55, 0.05, 0.05, '#ffd23f', 0, 0.9, -0.95, 0, 0, 0, 'gloss');
+      b.meshes(true).forEach((m) => g.add(m)); g.position.set(wx(cr.x), 0, wx(cr.z)); scene.add(g); L.dyn.crates[cr.id] = { g, cr }; });
+    P.sky.forEach((s) => { const X = wx(s.x), Z = wx(s.z); const m = new T.Mesh(new T.CircleGeometry(0.9, 24), new T.MeshBasicMaterial({ color: '#fff7c2', transparent: true, opacity: 0.45, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(X, 0.03, Z); scene.add(m);
+      Rf.box(1.9, 0.3, 1.9, 0.1, th.trim, X, RH + 0.05, Z); const gm = new T.Mesh(new T.SphereGeometry(0.85, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.MAT.glass); gm.position.set(X, RH + 0.2, Z); gm.scale.y = 0.6; L.dyn.sky.push(gm); });
+    P.roofPts.forEach((p) => { const [dx, dz] = wallDir(p.x, p.z); const X = wx(p.x) + dx * 0.6, Z = wx(p.z) + dz * 0.6;
+      S.tor(0.35, 0.08, '#ffd23f', X + dx * 0.3, RH + 0.2, Z + dz * 0.3, Math.PI / 2, 0, 0, 'glow'); S.cyl(0.05, 0.05, RH - 0.5, '#c48a4a', X, (RH + 0.5) / 2, Z); for (let k = 0; k < 5; k++) S.sph(0.09, '#a0662b', X, 0.8 + k * 0.6, Z);
+      const ring = new T.Mesh(new T.TorusGeometry(0.85, 0.08, 8, 28), M.MAT.marker.clone()); ring.material.color.set('#ffd23f'); ring.material.depthTest = true; ring.rotation.x = Math.PI / 2; ring.position.set(wx(p.x), 0.08, wx(p.z)); scene.add(ring); L.dyn.roofPts.push(ring); });
+
+    /* ---------- decor ---------- */
+    const res = LG.reserved(P); const pass = LG.layoutPass(P);
+    if (def.stations) { const fx = (cells, t) => cells.forEach(([x, z]) => { P.deco[z][x] = t ? 2 : 1; });
+      fx([[8, 6], [9, 6], [10, 6], [8, 7], [9, 7], [10, 7]]); PR.F.planTable(PR.at(S, 19, 14, 0));
+      const holo = new T.Group(); holo.position.set(19, 1.6, 14); scene.add(holo); const hb = new M.B(); hb.box(1.6, 0.06, 1.2, 0.02, '#22d3ee', 0, 0, 0, 0, 0, 0, 'glow'); hb.box(0.5, 0.8, 0.5, 0.04, '#7dd3fc', -0.4, 0.45, -0.2, 0, 0, 0, 'glow'); hb.box(0.4, 0.5, 0.4, 0.04, '#a78bfa', 0.4, 0.3, 0.2, 0, 0, 0, 'glow'); hb.cone(0.25, 0.5, '#ff4fd8', 0.4, 0.8, 0.2, 0, 0, 0, 'glow');
+      hb.meshes(false).forEach((m) => { m.material = new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false }); holo.add(m); }); L.dyn.holo = holo;
+      fx([[23, 5], [24, 5], [25, 5]]); PR.F.workbench(PR.at(S, 47, 11, 0)); PR.F.workbench(PR.at(S, 51, 11, 0)); PR.F.gadgetRack(PR.at(S, 49, 11, 0));
+      fx([[3, 21], [3, 19], [3, 23]], true); PR.F.mirror(PR.at(S, 6.6, 43, Math.PI / 2)); PR.F.clothesRack(PR.at(S, 7.2, 39, Math.PI / 2), 1); PR.F.clothesRack(PR.at(S, 7.2, 47, Math.PI / 2), 4);
+      const stage = []; for (let x = 4; x <= 10; x++) stage.push([x, 14]); fx(stage); S.box(14, 0.35, 2.2, 0.15, '#7c3aed', 15, 0.17, 29); S.box(14.2, 0.08, 2.3, 0.04, '#ffd23f', 15, 0.36, 29, 0, 0, 0, 'glow');
+      for (let k = 0; k < 4; k++) { S.cyl(0.9, 0.9, 0.05, '#fff3c4', 9.5 + k * 3.7, 0.4, 29, 0, 0, 0, 'glow'); } S.box(14, 0.5, 0.3, 0.1, '#1f2937', 15, 3.3, 27.2); for (let k = 0; k < 4; k++) S.cyl(0.18, 0.28, 0.4, '#fff3c4', 9.5 + k * 3.7, 3.0, 27.4, 0.6, 0, 0, 'glow');
+      L.lineup = [0, 1, 2, 3].map((k) => [9.5 + k * 3.7, 0.38, 29]);
+      L.trophySpots = [[14, 15], [17, 14], [20, 15], [14, 21], [20, 21]]; fx(L.trophySpots); L.trophySpots.forEach(([x, z], i) => PR.F.trophyPed(PR.at(S, wx(x), wx(z), 0), i));
+      fx([[26, 15], [27, 15], [26, 16], [27, 16], [26, 17], [27, 17]]); const van = M.vehicle('van'); van.position.set(54, 0, 33); scene.add(van); L.dyn.hubVan = van;
+      L.stationPts = def.stations.map((s) => Object.assign({}, s, { X: s.k === 'plan' ? 19 : s.k === 'van' ? 54 : s.k === 'crew' ? 15 : s.k === 'outfit' ? 6.6 : wx(s.x), Z: s.k === 'plan' ? 14 : s.k === 'van' ? 33 : s.k === 'crew' ? 29 : s.k === 'outfit' ? 43 : wx(s.z) }));
+    }
+    let reach = P.start ? LG.bfs(P, P.start.x, P.start.z, pass).count : 0;
+    const tryBlock = (cells) => { if (cells.some(([x, z]) => !LG.inside(P, x, z) || res[x + ',' + z] || P.deco[z][x] || !pass(x, z))) return false; cells.forEach(([x, z]) => { P.deco[z][x] = 1; }); const n = P.start ? LG.bfs(P, P.start.x, P.start.z, pass).count : reach - cells.length;
+      if (n !== reach - cells.length) { cells.forEach(([x, z]) => { P.deco[z][x] = 0; }); return false; } reach = n; return true; };
+    const place = (kind, x, z, rot, i, b, dx, dz) => { const f = PR.F[kind]; if (!f) return; f(PR.at(b || S, wx(x) + (dx || 0), wx(z) + (dz || 0), rot), i); };
+    // big centrepieces
+    const centre = (r, kind, w, d, rot) => { const cx = Math.floor((r.x0 + r.x1) / 2), cz = Math.floor((r.z0 + r.z1) / 2);
+      for (const [ox, oz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]) { const x0 = cx + ox - Math.floor((w - 1) / 2), z0 = cz + oz - Math.floor((d - 1) / 2); const cells = []; for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) cells.push([x, z]);
+        if (cells.every(([x, z]) => P.room[z] && P.room[z][x] === r.i) && tryBlock(cells)) { cells.forEach(([x, z]) => { P.deco[z][x] = PR.TALL[kind] ? 2 : 1; }); PR.F[kind](PR.at(S, (x0 + w / 2) * C, (z0 + d / 2) * C, rot || 0), r.i); return true; } } return false; };
+    P.rooms.forEach((r) => {
+      const dc = DECOR[r.kind]; if (!dc) return;
+      if (r.kind === 'dino') centre(r, 'dino', 1, 4, 0);
+      if (r.kind === 'court') centre(r, 'fountain', 2, 2, 0);
+      if (dc.rug) { const cx = (r.x0 + r.x1 + 1) / 2 * C, cz = (r.z0 + r.z1 + 1) / 2 * C; PR.F.rug(PR.at(S, cx, cz, 0), r.i); }
+      let wi = 0, hi = 0;
+      for (let z = r.z0 + 1; z < r.z1; z++) for (let x = r.x0 + 1; x < r.x1; x++) {
+        if (P.ch[z][x] !== '.') continue; const walls = DIRS.filter(([dx, dz]) => isWall(x + dx, z + dz));
+        if (!walls.length) continue; const [dx, dz] = walls[0]; const rot = Math.atan2(-dx, -dz);
+        const nearSpecial = DIRS.concat([[1, 1], [1, -1], [-1, 1], [-1, -1]]).some(([ax, az]) => { const q = ch(x + ax, z + az); return q === 'D' || q === 'L' || q === 'S' || q === 'Z'; });
+        let tall = false;
+        if (!nearSpecial && (x + z * 3 + r.i) % 2 === 0 && !res[x + ',' + z] && dc.W) { const kind = dc.W[wi % dc.W.length]; if (tryBlock([[x, z]])) { wi++; P.deco[z][x] = PR.TALL[kind] ? 2 : 1; tall = !!PR.TALL[kind]; place(kind, x, z, rot, wi + r.i, S, dx * 0.12, dz * 0.12); } }
+        if (dc.H && !tall && !nearSpecial && (x * 2 + z) % 3 === 0 && !P.cams.some((c) => c.x === x && c.z === z) && !P.levers.some((l) => l.x === x && l.z === z) && !P.vents.some((v) => (v.a[0] === x && v.a[1] === z) || (v.b[0] === x && v.b[1] === z))) { const kind = dc.H[hi++ % dc.H.length]; place(kind, x, z, rot, hi + r.i * 3, S, dx * 0.97, dz * 0.97); }
+      }
+      if (dc.C) { let ci = 0; for (let z = r.z0 + 3; z < r.z1 - 2; z += 4) for (let x = r.x0 + 3; x < r.x1 - 2; x += 4) { if (P.ch[z][x] !== '.' || res[x + ',' + z]) continue; const kind = dc.C[ci % dc.C.length]; if (tryBlock([[x, z]])) { ci++; P.deco[z][x] = PR.TALL[kind] ? 2 : 1; place(kind, x, z, (ci % 4) * Math.PI / 2, ci + r.i); } } }
+    });
+    // exterior ring decor
+    const extKinds = { park: ['tree', 'bush', 'streetLamp', 'bench', 'tree', 'mailbox'], candy: ['lollipop', 'gumdrop', 'candyLamp', 'cupcake', 'gumdrop'], plaza: ['tree', 'streetLamp', 'bush', 'bench', 'tree'], dock: ['bollard', 'barrel', 'crateStack', 'bollard'], clouds: ['cloudBush', 'cloudPuff', 'cloudBush'], night: ['tree', 'streetLamp', 'bush', 'bench', 'gifts'] }[th.ext] || ['tree'];
+    let ei = 0;
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (P.ch[z][x] !== ' ' || res[x + ',' + z]) continue; let near = false; for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (isWall(x + dx, z + dz) || ch(x + dx, z + dz) === 'D') near = true; if (near) continue;
+      const edge = x === 0 || z === 0 || x === W - 1 || z === H - 1; if (!(edge ? rnd(x, z) < 0.55 : rnd(x, z) < 0.12)) continue; const kind = extKinds[ei % extKinds.length]; if (tryBlock([[x, z]])) { ei++; place(kind, x, z, rnd(z, x) * 6, ei); } }
+    // scenery beyond the map edge (no collision)
+    const scen = new M.B(); const outK = th.ext === 'candy' ? ['lollipop', 'gumdrop', 'tree', 'cupcake'] : th.ext === 'clouds' ? ['cloudPuff', 'cloudBush'] : th.ext === 'dock' ? [] : ['tree', 'pine', 'tree', 'bush'];
+    if (outK.length) for (let i = 0; i < (low ? 70 : 150); i++) { const a = rnd(i, 11) * Math.PI * 2, r = Math.max(W, H) * C * 0.62 + 6 + rnd(i, 12) * 40; const X = cxm + Math.cos(a) * r * (W / Math.max(W, H)) * 1.1, Z = czm + Math.sin(a) * r * (H / Math.max(W, H)) * 1.15; if (X > -1 && X < W * C + 1 && Z > -1 && Z < H * C + 1) continue; const k = outK[i % outK.length]; PR.F[k](PR.at(scen, X, Z, rnd(i, 3) * 6), i); if (th.ext === 'clouds') scen.sph(3 + rnd(i, 9) * 3, '#ffffff', X, -1.2, Z, 1.4, 0.5, 1.2); }
+    if (!def.water && !def.clouds) { // hills + road in front
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = 150 + rnd(i, 4) * 40; scen.sph(30 + rnd(i, 5) * 20, i % 2 ? M.shift(def.ground || '#7cd36b', 0, 0, -0.05) : def.ground || '#7cd36b', cxm + Math.cos(a) * r, -12, czm + Math.sin(a) * r, 1.4, 0.55, 1.2, 0, 0, 0, null, 14, 10); }
+      scen.box(W * C + 120, 0.08, 7, 0.02, '#4b5563', cxm, -0.05, H * C + 4.5); for (let k = -15; k < 15; k++) scen.box(2.4, 0.09, 0.25, 0.02, '#ffffff', cxm + k * 5, -0.0, H * C + 4.5); scen.box(W * C + 120, 0.2, 0.5, 0.05, '#d1d5db', cxm, 0.0, H * C + 0.9);
+    }
+    if (def.water) { // ship bow + stern + far islands
+      const [x0, z0, x1, z1] = P.bbox; const mz = (z0 + z1 + 1) * C / 2, hz = (z1 - z0 + 1) * C; const bx = (x1 + 1) * C;
+      for (let k = 0; k < 8; k++) { const t = k / 8, w = hz * (1 - t) * 0.98; scen.box(2.2, WH + 1.2, w, 0.3, '#ffffff', bx + k * 2.0 + 1, (WH + 1.2) / 2 - 1.2, mz); scen.box(2.25, 0.5, w + 0.05, 0.1, '#1e3a8a', bx + k * 2.0 + 1, 0.2, mz); scen.box(2.25, 0.3, w + 0.05, 0.1, '#ef4444', bx + k * 2.0 + 1, 2.95, mz); }
+      scen.box(3, WH + 1.2, hz, 0.6, '#ffffff', x0 * C - 1.4, (WH + 1.2) / 2 - 1.2, mz); scen.box(3.05, 0.5, hz, 0.2, '#1e3a8a', x0 * C - 1.4, 0.2, mz);
+      [[x0 * C + 20, 0], [x0 * C + 40, 1], [x0 * C + 62, 0]].forEach(([sx, k]) => { scen.cyl(1.8, 2.0, 5, '#ffffff', sx, RH + 2.5, mz - 2); scen.cyl(1.85, 1.85, 1.2, '#ef4444', sx, RH + 4.2, mz - 2); scen.cyl(1.4, 1.4, 0.3, '#1f2937', sx, RH + 5.0, mz - 2); });
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.4, r = 160 + rnd(i, 2) * 50; scen.sph(18 + rnd(i, 3) * 10, '#f2d27a', cxm + Math.cos(a) * r, -6, czm + Math.sin(a) * r, 1.3, 0.4, 1.1); PR.F.palm(PR.at(scen, cxm + Math.cos(a) * r, czm + Math.sin(a) * r, 0), i); }
+    }
+    if (def.clouds) { const [x0, z0, x1, z1] = P.bbox; const rb = PR.at(scen, cxm, czm - H * C * 0.6 - 25, 0); ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7'].forEach((c, k) => rb.tor(60 - k * 2.5, 1.2, c, 0, -5, 0, 0, 0, 0, 'glow', Math.PI)); }
+    const scm = scen.group(false); scene.add(scm);
+
+    /* ---------- roofs ---------- */
+    const roofCol = th.roof;
+    for (let z = 0; z < H; z++) for (let x = 0; x < W; x++) { if (!P.roofCell[z][x]) continue; const X = wx(x), Z = wx(z); const sky = P.sky.some((s) => s.x === x && s.z === z); if (sky) continue;
+      Rf.geo(new T.BoxGeometry(2.0, 0.5, 2.0), (x + z) % 2 ? roofCol : M.shift(roofCol, 0, 0, -0.03), X, WH + 0.25, Z);
+      DIRS.forEach(([dx, dz]) => { if (LG.inside(P, x + dx, z + dz) && P.roofCell[z + dz][x + dx]) return; if (dx) Rf.box(0.3, 0.45, 2.0, 0.1, th.trim, X + dx * 0.9, RH + 0.2, Z); else Rf.box(2.0, 0.45, 0.3, 0.1, th.trim, X, RH + 0.2, Z + dz * 0.9);
+        if (def.id === 'castle' && (x + z) % 2 === 0) { if (dx) Rf.box(0.4, 0.7, 0.9, 0.1, '#ece6ff', X + dx * 0.9, RH + 0.75, Z); else Rf.box(0.9, 0.7, 0.4, 0.1, '#ece6ff', X, RH + 0.75, Z + dz * 0.9); }
+        if (def.id === 'candy') Rf.sph(0.3, '#ffffff', X + dx * 0.95, RH - 0.1, Z + dz * 0.95, 1, 1.6, 1); });
+      const rr = rnd(x * 3, z * 5); const nearSky = P.sky.some((s) => Math.abs(s.x - x) <= 1 && Math.abs(s.z - z) <= 1) || P.roofPts.some((p) => Math.abs(p.x - x) <= 1 && Math.abs(p.z - z) <= 1);
+      if (!nearSky && rr < 0.06) { const a = PR.at(Rf, X, Z, rr * 60); if (def.id === 'candy') PR.F.lollipop(a, x + z); else if (def.id === 'castle') a.cone(0.6, 1.2, '#ffd23f', 0, RH + 1.0, 0, 0, 0, 0, 'gloss'); else if (def.id === 'toys') a.box(1.2, 1.2, 1.2, 0.2, ['#ef4444', '#22c55e', '#3b82f6'][(x + z) % 3], 0, RH + 0.6, 0, 0, rr * 9, 0, 'gloss'); else { a.box(1.4, 0.9, 1.0, 0.15, '#cbd5e1', 0, RH + 0.45, 0); a.cyl(0.35, 0.35, 0.1, '#64748b', 0, RH + 0.92, 0); } }
+    }
+    if (def.id === 'castle') { const [x0, z0, x1, z1] = P.bbox; [[x0, z0 + 4], [x1, z0 + 4], [x0, z1], [x1, z1], [16, 1], [28, 1]].forEach(([x, z]) => { const X = wx(x), Z = wx(z); Rf.cyl(1.6, 1.8, 7.5, '#ece6ff', X, 3.75, Z, 0, 0, 0, null, 18); Rf.cone(2.2, 3.4, '#a593ff', X, 9.2, Z, 0, 0, 0, null, 18); Rf.cyl(0.04, 0.04, 1.6, '#64748b', X, 11.6, Z); Rf.box(0.9, 0.5, 0.04, 0.02, '#ff4fd8', X + 0.45, 12.1, Z); for (let k = 0; k < 3; k++) Rf.cap(0.18, 0.4, '#5b4b8a', X + Math.sin(k * 2.1 + 0.5) * 1.62, 5 + k * 0.3, Z + Math.cos(k * 2.1 + 0.5) * 1.62, 0, k * 2.1 + 0.5, 0); }); }
+    if (def.id === 'candy') { [[8, 8], [8, 20], [33, 19]].forEach(([x, z], i) => { Rf.cyl(0.9, 1.1, 5, '#ffffff', wx(x), RH + 2.5, wx(z)); for (let k = 0; k < 3; k++) Rf.tor(0.95, 0.15, '#ff4f9a', wx(x), RH + 1 + k * 1.5, wx(z), Math.PI / 2, 0, 0, 'gloss'); }); }
+    if (def.id === 'museum') { const fz = wx(30) + 1.4, fx = wx(21) + 1; const a = PR.at(Rf, fx, fz, 0); a.cone(9, 3, '#f2e9da', 0, RH + 1.5, -0.2, 0, Math.PI / 4, 0, null, 4); for (let k = -2; k <= 2; k++) if (k) { PR.F.column(PR.at(S, fx + k * 2.4, fz + 1.4, 0)); } a.box(16, 0.4, 3.5, 0.1, '#e8e0d0', 0, RH - 0.1, 0.8); }
+    if (def.id === 'toys') { const a = PR.at(Rf, wx(20), wx(28) - 0.3, 0); ['#ef4444', '#22c55e', '#3b82f6', '#ffd23f'].forEach((c, k) => { a.box(1.6, 1.6, 1.6, 0.3, c, -3.6 + k * 2.4, RH + 1.0, 0, 0, (k - 1.5) * 0.15, 0, 'gloss'); a.sph(0.4, '#ffffff', -3.6 + k * 2.4, RH + 1.0, 0.82, 1, 1, 0.3, 'glow'); }); PR.F.teddy && 0; }
+    if (def.id === 'hideout') { const a = PR.at(Rf, wx(26), wx(6), 0); a.cyl(0.08, 0.08, 1.4, '#94a3b8', 0, RH + 0.7, 0); a.sph(0.9, '#e5e7eb', 0, RH + 1.6, 0.3, 1, 1, 0.35, 'gloss'); a.box(1.0, 2.2, 1.0, 0.1, '#8a3f2a', -12, RH + 1.1, 2); }
+    const roofG = Rf.group(true); L.roof = new T.Group(); L.roof.add(roofG); L.dyn.sky.forEach((m) => L.roof.add(m)); scene.add(L.roof);
+
+    /* ---------- getaway vehicle ---------- */
+    if (P.exit) { const v = M.vehicle(def.vehicle || 'van'); v.position.set(wx(P.exit.x), def.water ? -0.6 : 0, wx(P.exit.z)); v.rotation.y = def.water ? Math.PI / 2 : -Math.PI / 2; scene.add(v); L.dyn.vehicle = v; }
+
+    /* ---------- assemble static ---------- */
+    const sg = S.group(true); sg.children.forEach((m) => { m.receiveShadow = true; }); scene.add(sg);
+    const fg = FL.group(false); fg.children.forEach((m) => { m.receiveShadow = true; m.castShadow = false; }); scene.add(fg);
+    L.static = [sg, fg];
+    L.windows = winN;
+    return L;
+  };
+})();
