@@ -84,8 +84,8 @@
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: 'uniform vec3 top; uniform vec3 hor; varying vec3 vD; void main(){ float h = max(vD.y, 0.0); gl_FragColor = vec4(mix(hor, top, pow(h, 0.6)), 1.0); }' }));
     dome.renderOrder = -10; scene.add(dome); L.dome = dome;
-    const hemi = new T.HemisphereLight(sk.hs, sk.hg, sk.hi); scene.add(hemi);
-    const sun = new T.DirectionalLight(sk.sun, sk.si); sun.position.set(30, 50, 22); scene.add(sun); scene.add(sun.target); L.sun = sun; L.sunOff = new T.Vector3(18, 34, 14);
+    const hemi = new T.HemisphereLight(sk.hs, sk.hg, sk.hi * 0.62); scene.add(hemi);
+    const sun = new T.DirectionalLight(sk.sun, sk.si * 0.6); sun.position.set(30, 50, 22); scene.add(sun); scene.add(sun.target); L.sun = sun; L.sunOff = new T.Vector3(18, 34, 14);
     sun.castShadow = !low; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 120; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
     const fill = new T.DirectionalLight(def.sky === 'night' ? '#ff9ae8' : '#ffffff', def.sky === 'night' ? 0.35 : 0.22); fill.position.set(-20, 18, -30); scene.add(fill);
     if (def.sky === 'night') { // stars + moon

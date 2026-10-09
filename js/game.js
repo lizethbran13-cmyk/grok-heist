@@ -17,7 +17,7 @@
     const cv = document.getElementById('c');
     const R = G.renderer = new T.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
     G.prMax = Math.min(window.devicePixelRatio || 1, 2); R.setPixelRatio(G.gfx === 'low' ? 1 : G.prMax);
-    R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 1.12;
+    R.outputEncoding = T.LinearEncoding; R.toneMapping = T.NoToneMapping; // colours authored in display space: show them vivid, no filmic wash
     R.shadowMap.enabled = G.gfx !== 'low'; R.shadowMap.type = T.PCFSoftShadowMap;
     G.cam = new T.PerspectiveCamera(62, 1, 0.1, 900);
     onResize(); window.addEventListener('resize', onResize);
@@ -53,9 +53,10 @@
     // xray ping markers pool
     L.xray = [];
     // hero
-    const st = G.P.start; G.hero = { x: wx(st.x), z: wx(st.z), y: 0, yaw: G.hub ? Math.PI : Math.PI, spd: 0, vx: 0, vz: 0, role: G.save.role || 'hacker', carry: null, roof: false, vent: false, inv: 2, anim: null, hack: null, abCd: 0, pingT: 0, check: [wx(st.x), wx(st.z)] };
+    const st = G.P.start; G.hero = { x: wx(st.x), z: wx(st.z), y: 0, yaw: G.hub ? Math.PI : Math.PI, spd: 0, vx: 0, vz: 0, role: G.save.role || 'hacker', carry: null, roof: false, vent: false, inv: 0, anim: null, hack: null, abCd: 0, pingT: 0, check: [wx(st.x), wx(st.z)] };
     if (!G.hub) G.hero.yaw = Math.atan2(wx(st.x) - G.hero.x, (wx(G.P.bbox[1]) - G.hero.z)) || Math.PI;
     G.hero.yaw = G.hub ? Math.PI : (G.P.start.z > G.P.bbox[3] ? Math.PI : 0);
+    if (G.hub) { let best = -1; [0, Math.PI / 2, Math.PI, -Math.PI / 2].forEach((yw) => { let n = 0; for (let k = 1; k < 6; k++) { const x = st.x - Math.round(Math.sin(yw)) * k, z = st.z - Math.round(Math.cos(yw)) * k; if (!LG.inside(G.P, x, z) || LG.solid(G.P, x, z)) break; n++; } if (n > best) { best = n; G.hero.yaw = yw; } }); }
     G.setRole(G.hero.role, true);
     G.camYaw = G.hero.yaw + Math.PI; G.camPitch = G.hub ? 0.7 : 0.62;
     if (G.hub) { G.buildTrophies(); G.buildLineup(); }
@@ -290,9 +291,12 @@
     if (G.mode === 'title') { G.camYaw += dt * 0.12; const cx = G.P.W, cz = G.P.H; G.cam.position.set(cx + Math.sin(G.camYaw) * 46, 22, cz + Math.cos(G.camYaw) * 46); G.cam.lookAt(cx, 2, cz); return; }
     if (G.camOverride) { G.cam.position.copy(G.camOverride.pos); G.cam.lookAt(G.camOverride.look); return; }
     const tx = h.x, ty = h.y + 1.5, tz = h.z; let dist = G.camDist; const p = G.camPitch;
-    const dx = Math.sin(G.camYaw) * Math.cos(p), dy = Math.sin(p), dz = Math.cos(G.camYaw) * Math.cos(p);
-    // pull in if a wall blocks
-    for (let s = 0.6; s < dist; s += 0.25) { const y = ty + dy * s; if (y > D.WALL_H + 0.3) break; const cx = LG.cx(tx + dx * s), cz = LG.cx(tz + dz * s); if (LG.inside(G.P, cx, cz) && (G.P.ch[cz][cx] === '#' || (!h.roof && LG.opaque(G.P, cx, cz) && G.P.ch[cz][cx] !== '.'))) { dist = Math.max(1.6, s - 0.35); break; } }
+    // walls between hero and camera: tilt the camera up (more top-down) so walls never fill the screen
+    const ch = (h.roof ? 0 : 1); let hmax = 99; const cs = Math.sin(G.camYaw), cc = Math.cos(G.camYaw);
+    if (ch) for (let s = 0.5; s < dist; s += 0.25) { const cx = LG.cx(tx + cs * s), cz = LG.cx(tz + cc * s); if (!LG.inside(G.P, cx, cz)) break; const q = G.P.ch[cz][cx]; if (q === '#' || q === 'S' && !G.P.state.secret || q === 'L' && !G.P.state.locks[G.P.lockAt[cx + ',' + cz]]) { hmax = Math.max(0.6, s - 0.45); break; } }
+    let pe = p; if (dist * Math.cos(pe) > hmax) { pe = Math.acos(U.clamp(hmax / dist, 0, 1)); if (pe > 1.25) { pe = 1.25; dist = Math.max(2.2, hmax / Math.cos(pe)); } }
+    G.camPE = U.lerp(G.camPE == null ? pe : G.camPE, pe, Math.min(1, dt * 6));
+    const dx = Math.sin(G.camYaw) * Math.cos(G.camPE), dy = Math.sin(G.camPE), dz = Math.cos(G.camYaw) * Math.cos(G.camPE);
     G.camD = U.lerp(G.camD || dist, dist, Math.min(1, dt * (dist < (G.camD || dist) ? 20 : 4)));
     G.cam.position.set(tx + dx * G.camD, ty + dy * G.camD, tz + dz * G.camD); G.cam.lookAt(tx, ty, tz);
   }
@@ -329,7 +333,7 @@
     heroDraw(dt);
     if (GH.Net) GH.Net.tick(dt);
     // roof visibility: hide when inside
-    { const h = G.hero; const cx = LG.cx(h.x), cz = LG.cx(h.z); const inside = !h.roof && LG.inside(P, cx, cz) && P.room[cz] && (P.room[cz][cx] >= 0 || 'DLSZ'.indexOf(P.ch[cz][cx]) >= 0) && G.mode !== 'title' && !G.escape; L.roof.visible = !inside || G.camOverride && G.camOverride.roof; }
+    { const h = G.hero; const cx = LG.cx(h.x), cz = LG.cx(h.z); const inside = !h.roof && LG.inside(P, cx, cz) && P.room[cz] && (P.room[cz][cx] >= 0 || 'DLSZ'.indexOf(P.ch[cz][cx]) >= 0) && G.mode !== 'title' && !G.escape; L.roof.visible = !inside || !!(G.camOverride && G.camOverride.roof); }
     // objective marker
     { const mk = L.marker; let pos = null; const S = P.state; if (G.phase === 'sneak' && P.target) pos = S.target === 'home' ? [wx(P.target.x), wx(P.target.z)] : S.target.drop; else if (G.phase === 'escape') { if (G.hero.carry === 'target' || (S.target && S.target.by)) pos = [L.dyn.vehicle.position.x, L.dyn.vehicle.position.z]; else if (S.target && S.target.drop) pos = S.target.drop; }
       mk.visible = !!pos && G.mode !== 'title'; if (pos) { mk.position.set(pos[0], 3.6 + Math.sin(G.t * 3) * 0.25, pos[1]); mk.rotation.y += dt * 2; } G.objPos = pos; }
